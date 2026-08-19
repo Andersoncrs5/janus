@@ -1,4 +1,4 @@
-CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA public;
+-- CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA public;
 
 -- =========================================================
 -- JANUS IAM
@@ -10,7 +10,7 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA public;
 -- 1. USERS
 -- =========================================================
 
-CREATE TABLE public.users (
+CREATE TABLE users (
 
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
@@ -55,36 +55,20 @@ CREATE TABLE public.users (
 
 );
 
-
-CREATE UNIQUE INDEX ux_users_tenant_email
-    ON public.users (tenant_id, LOWER(email))
-    WHERE deleted_at IS NULL;
-
-
-CREATE UNIQUE INDEX ux_users_tenant_username
-    ON public.users (tenant_id, LOWER(username))
-    WHERE username IS NOT NULL
-      AND deleted_at IS NULL;
-
-
-CREATE INDEX idx_users_tenant_id
-    ON public.users (tenant_id);
-
-
 CREATE INDEX idx_users_locked_until
-    ON public.users (locked_until)
+    ON users (locked_until)
     WHERE locked_until IS NOT NULL;
 
 
 CREATE INDEX idx_users_created_at
-    ON public.users (created_at DESC);
+    ON users (created_at DESC);
 
 
 -- =========================================================
 -- 2. USER_CREDENTIALS
 -- =========================================================
 
-CREATE TABLE public.user_credentials (
+CREATE TABLE user_credentials (
 
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
@@ -105,7 +89,7 @@ CREATE TABLE public.user_credentials (
 
     CONSTRAINT fk_user_credentials_user
         FOREIGN KEY (user_id)
-        REFERENCES public.users(id)
+        REFERENCES users(id)
         ON DELETE CASCADE,
 
     CONSTRAINT ck_user_credentials_password_hash_not_empty
@@ -120,19 +104,15 @@ CREATE TABLE public.user_credentials (
 );
 
 
-CREATE INDEX idx_user_credentials_tenant_id
-    ON public.user_credentials(tenant_id);
-
-
 CREATE INDEX idx_user_credentials_user_id
-    ON public.user_credentials(user_id);
+    ON user_credentials(user_id);
 
 
 -- =========================================================
 -- 3. SESSIONS
 -- =========================================================
 
-CREATE TABLE public.sessions (
+CREATE TABLE sessions (
 
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
@@ -154,7 +134,7 @@ CREATE TABLE public.sessions (
 
     CONSTRAINT fk_sessions_user
         FOREIGN KEY (user_id)
-        REFERENCES public.users(id)
+        REFERENCES users(id)
         ON DELETE CASCADE,
 
     CONSTRAINT ck_sessions_version
@@ -162,33 +142,28 @@ CREATE TABLE public.sessions (
 
 );
 
-
-CREATE INDEX idx_sessions_tenant_id
-    ON public.sessions(tenant_id);
-
-
 CREATE INDEX idx_sessions_user_id
-    ON public.sessions(user_id);
+    ON sessions(user_id);
 
 
 CREATE INDEX idx_sessions_user_active
-    ON public.sessions(user_id)
+    ON sessions(user_id)
     WHERE is_revoked = FALSE;
 
 
 CREATE INDEX idx_sessions_expires_at
-    ON public.sessions(expires_at);
+    ON sessions(expires_at);
 
 
 CREATE INDEX idx_sessions_created_at
-    ON public.sessions(created_at DESC);
+    ON sessions(created_at DESC);
 
 
 -- =========================================================
 -- 4. REFRESH_TOKENS
 -- =========================================================
 
-CREATE TABLE public.refresh_tokens (
+CREATE TABLE refresh_tokens (
 
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
@@ -215,12 +190,12 @@ CREATE TABLE public.refresh_tokens (
 
     CONSTRAINT fk_refresh_tokens_session
         FOREIGN KEY (session_id)
-        REFERENCES public.sessions(id)
+        REFERENCES sessions(id)
         ON DELETE CASCADE,
 
     CONSTRAINT fk_refresh_tokens_user
         FOREIGN KEY (user_id)
-        REFERENCES public.users(id)
+        REFERENCES users(id)
         ON DELETE CASCADE,
 
     CONSTRAINT ck_refresh_tokens_token_hash_not_empty
@@ -231,25 +206,20 @@ CREATE TABLE public.refresh_tokens (
 
 );
 
-
-CREATE INDEX idx_refresh_tokens_tenant_id
-    ON public.refresh_tokens(tenant_id);
-
-
 CREATE INDEX idx_refresh_tokens_session_id
-    ON public.refresh_tokens(session_id);
+    ON refresh_tokens(session_id);
 
 
 CREATE INDEX idx_refresh_tokens_user_id
-    ON public.refresh_tokens(user_id);
+    ON refresh_tokens(user_id);
 
 
 CREATE INDEX idx_refresh_tokens_expires_at
-    ON public.refresh_tokens(expires_at);
+    ON refresh_tokens(expires_at);
 
 
 CREATE INDEX idx_refresh_tokens_active
-    ON public.refresh_tokens(user_id)
+    ON refresh_tokens(user_id)
     WHERE is_used = FALSE
       AND is_revoked = FALSE;
 
@@ -258,7 +228,7 @@ CREATE INDEX idx_refresh_tokens_active
 -- 5. ROLES
 -- =========================================================
 
-CREATE TABLE public.roles (
+CREATE TABLE roles (
 
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
@@ -285,26 +255,11 @@ CREATE TABLE public.roles (
 );
 
 
-CREATE UNIQUE INDEX ux_roles_tenant_name
-    ON public.roles(tenant_id, LOWER(name))
-    WHERE deleted_at IS NULL;
-
-
-CREATE INDEX idx_roles_tenant_id
-    ON public.roles(tenant_id);
-
-
-CREATE INDEX idx_roles_active
-    ON public.roles(tenant_id)
-    WHERE is_active = TRUE
-      AND deleted_at IS NULL;
-
-
 -- =========================================================
 -- 6. PERMISSIONS
 -- =========================================================
 
-CREATE TABLE public.permissions (
+CREATE TABLE permissions (
 
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
@@ -331,26 +286,11 @@ CREATE TABLE public.permissions (
 );
 
 
-CREATE UNIQUE INDEX ux_permissions_tenant_slug
-    ON public.permissions(tenant_id, LOWER(slug))
-    WHERE deleted_at IS NULL;
-
-
-CREATE INDEX idx_permissions_tenant_id
-    ON public.permissions(tenant_id);
-
-
-CREATE INDEX idx_permissions_active
-    ON public.permissions(tenant_id)
-    WHERE is_active = TRUE
-      AND deleted_at IS NULL;
-
-
 -- =========================================================
 -- 7. USER_ROLES
 -- =========================================================
 
-CREATE TABLE public.user_roles (
+CREATE TABLE user_roles (
 
     user_id UUID NOT NULL,
 
@@ -364,12 +304,12 @@ CREATE TABLE public.user_roles (
 
     CONSTRAINT fk_user_roles_user
         FOREIGN KEY (user_id)
-        REFERENCES public.users(id)
+        REFERENCES users(id)
         ON DELETE CASCADE,
 
     CONSTRAINT fk_user_roles_role
         FOREIGN KEY (role_id)
-        REFERENCES public.roles(id)
+        REFERENCES roles(id)
         ON DELETE CASCADE,
 
     CONSTRAINT ck_user_roles_version
@@ -377,20 +317,15 @@ CREATE TABLE public.user_roles (
 
 );
 
-
-CREATE INDEX idx_user_roles_tenant_id
-    ON public.user_roles(tenant_id);
-
-
 CREATE INDEX idx_user_roles_role_id
-    ON public.user_roles(role_id);
+    ON user_roles(role_id);
 
 
 -- =========================================================
 -- 8. ROLE_PERMISSIONS
 -- =========================================================
 
-CREATE TABLE public.role_permissions (
+CREATE TABLE role_permissions (
 
     role_id UUID NOT NULL,
 
@@ -404,12 +339,12 @@ CREATE TABLE public.role_permissions (
 
     CONSTRAINT fk_role_permissions_role
         FOREIGN KEY (role_id)
-        REFERENCES public.roles(id)
+        REFERENCES roles(id)
         ON DELETE CASCADE,
 
     CONSTRAINT fk_role_permissions_permission
         FOREIGN KEY (permission_id)
-        REFERENCES public.permissions(id)
+        REFERENCES permissions(id)
         ON DELETE CASCADE,
 
     CONSTRAINT ck_role_permissions_version
@@ -417,20 +352,15 @@ CREATE TABLE public.role_permissions (
 
 );
 
-
-CREATE INDEX idx_role_permissions_tenant_id
-    ON public.role_permissions(tenant_id);
-
-
 CREATE INDEX idx_role_permissions_permission_id
-    ON public.role_permissions(permission_id);
+    ON role_permissions(permission_id);
 
 
 -- =========================================================
 -- 9. MFA_FACTORS
 -- =========================================================
 
-CREATE TABLE public.mfa_factors (
+CREATE TABLE mfa_factors (
 
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
@@ -452,7 +382,7 @@ CREATE TABLE public.mfa_factors (
 
     CONSTRAINT fk_mfa_factors_user
         FOREIGN KEY (user_id)
-        REFERENCES public.users(id)
+        REFERENCES users(id)
         ON DELETE CASCADE,
 
     CONSTRAINT ck_mfa_factors_type_not_empty
@@ -463,17 +393,12 @@ CREATE TABLE public.mfa_factors (
 
 );
 
-
-CREATE INDEX idx_mfa_factors_tenant_id
-    ON public.mfa_factors(tenant_id);
-
-
 CREATE INDEX idx_mfa_factors_user_id
-    ON public.mfa_factors(user_id);
+    ON mfa_factors(user_id);
 
 
 CREATE INDEX idx_mfa_factors_enabled
-    ON public.mfa_factors(user_id)
+    ON mfa_factors(user_id)
     WHERE is_enabled = TRUE
       AND deleted_at IS NULL;
 
@@ -482,7 +407,7 @@ CREATE INDEX idx_mfa_factors_enabled
 -- 10. AUDIT_LOGS
 -- =========================================================
 
-CREATE TABLE public.audit_logs (
+CREATE TABLE audit_logs (
 
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
@@ -502,7 +427,7 @@ CREATE TABLE public.audit_logs (
 
     CONSTRAINT fk_audit_logs_user
         FOREIGN KEY (user_id)
-        REFERENCES public.users(id)
+        REFERENCES users(id)
         ON DELETE SET NULL,
 
     CONSTRAINT ck_audit_logs_event_not_empty
@@ -514,27 +439,14 @@ CREATE TABLE public.audit_logs (
 );
 
 
-CREATE INDEX idx_audit_logs_tenant_id
-    ON public.audit_logs(tenant_id);
-
-
 CREATE INDEX idx_audit_logs_user_id
-    ON public.audit_logs(user_id);
-
-
-CREATE INDEX idx_audit_logs_event
-    ON public.audit_logs(tenant_id, event);
-
-
-CREATE INDEX idx_audit_logs_created_at
-    ON public.audit_logs(tenant_id, created_at DESC);
-
+    ON audit_logs(user_id);
 
 -- =========================================================
 -- UPDATED_AT TRIGGER
 -- =========================================================
 
-CREATE OR REPLACE FUNCTION public.set_updated_at()
+CREATE OR REPLACE FUNCTION set_updated_at()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 AS $$
@@ -550,9 +462,9 @@ $$;
 -- =========================================================
 
 CREATE TRIGGER trg_users_updated_at
-BEFORE UPDATE ON public.users
+BEFORE UPDATE ON users
 FOR EACH ROW
-EXECUTE FUNCTION public.set_updated_at();
+EXECUTE FUNCTION set_updated_at();
 
 
 -- =========================================================
@@ -560,9 +472,9 @@ EXECUTE FUNCTION public.set_updated_at();
 -- =========================================================
 
 CREATE TRIGGER trg_user_credentials_updated_at
-BEFORE UPDATE ON public.user_credentials
+BEFORE UPDATE ON user_credentials
 FOR EACH ROW
-EXECUTE FUNCTION public.set_updated_at();
+EXECUTE FUNCTION set_updated_at();
 
 
 -- =========================================================
@@ -570,9 +482,9 @@ EXECUTE FUNCTION public.set_updated_at();
 -- =========================================================
 
 CREATE TRIGGER trg_sessions_updated_at
-BEFORE UPDATE ON public.sessions
+BEFORE UPDATE ON sessions
 FOR EACH ROW
-EXECUTE FUNCTION public.set_updated_at();
+EXECUTE FUNCTION set_updated_at();
 
 
 -- =========================================================
@@ -580,9 +492,9 @@ EXECUTE FUNCTION public.set_updated_at();
 -- =========================================================
 
 CREATE TRIGGER trg_refresh_tokens_updated_at
-BEFORE UPDATE ON public.refresh_tokens
+BEFORE UPDATE ON refresh_tokens
 FOR EACH ROW
-EXECUTE FUNCTION public.set_updated_at();
+EXECUTE FUNCTION set_updated_at();
 
 
 -- =========================================================
@@ -590,9 +502,9 @@ EXECUTE FUNCTION public.set_updated_at();
 -- =========================================================
 
 CREATE TRIGGER trg_roles_updated_at
-BEFORE UPDATE ON public.roles
+BEFORE UPDATE ON roles
 FOR EACH ROW
-EXECUTE FUNCTION public.set_updated_at();
+EXECUTE FUNCTION set_updated_at();
 
 
 -- =========================================================
@@ -600,9 +512,9 @@ EXECUTE FUNCTION public.set_updated_at();
 -- =========================================================
 
 CREATE TRIGGER trg_permissions_updated_at
-BEFORE UPDATE ON public.permissions
+BEFORE UPDATE ON permissions
 FOR EACH ROW
-EXECUTE FUNCTION public.set_updated_at();
+EXECUTE FUNCTION set_updated_at();
 
 
 -- =========================================================
@@ -610,6 +522,6 @@ EXECUTE FUNCTION public.set_updated_at();
 -- =========================================================
 
 CREATE TRIGGER trg_mfa_factors_updated_at
-BEFORE UPDATE ON public.mfa_factors
+BEFORE UPDATE ON mfa_factors
 FOR EACH ROW
-EXECUTE FUNCTION public.set_updated_at();
+EXECUTE FUNCTION set_updated_at();
