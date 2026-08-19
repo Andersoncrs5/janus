@@ -14,8 +14,6 @@ CREATE TABLE public.users (
 
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
-    tenant_id UUID NOT NULL,
-
     email VARCHAR(320) NOT NULL,
 
     username VARCHAR(50),
@@ -90,8 +88,6 @@ CREATE TABLE public.user_credentials (
 
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
-    tenant_id UUID NOT NULL,
-
     user_id UUID NOT NULL,
 
     password_hash VARCHAR(255) NOT NULL,
@@ -139,8 +135,6 @@ CREATE INDEX idx_user_credentials_user_id
 CREATE TABLE public.sessions (
 
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-
-    tenant_id UUID NOT NULL,
 
     user_id UUID NOT NULL,
 
@@ -197,8 +191,6 @@ CREATE INDEX idx_sessions_created_at
 CREATE TABLE public.refresh_tokens (
 
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-
-    tenant_id UUID NOT NULL,
 
     session_id UUID NOT NULL,
 
@@ -270,8 +262,6 @@ CREATE TABLE public.roles (
 
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
-    tenant_id UUID NOT NULL,
-
     name VARCHAR(100) NOT NULL,
 
     description TEXT,
@@ -318,8 +308,6 @@ CREATE TABLE public.permissions (
 
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
-    tenant_id UUID NOT NULL,
-
     slug VARCHAR(150) NOT NULL,
 
     description TEXT,
@@ -364,8 +352,6 @@ CREATE INDEX idx_permissions_active
 
 CREATE TABLE public.user_roles (
 
-    tenant_id UUID NOT NULL,
-
     user_id UUID NOT NULL,
 
     role_id UUID NOT NULL,
@@ -405,8 +391,6 @@ CREATE INDEX idx_user_roles_role_id
 -- =========================================================
 
 CREATE TABLE public.role_permissions (
-
-    tenant_id UUID NOT NULL,
 
     role_id UUID NOT NULL,
 
@@ -449,8 +433,6 @@ CREATE INDEX idx_role_permissions_permission_id
 CREATE TABLE public.mfa_factors (
 
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-
-    tenant_id UUID NOT NULL,
 
     user_id UUID NOT NULL,
 
@@ -503,8 +485,6 @@ CREATE INDEX idx_mfa_factors_enabled
 CREATE TABLE public.audit_logs (
 
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-
-    tenant_id UUID NOT NULL,
 
     user_id UUID,
 
