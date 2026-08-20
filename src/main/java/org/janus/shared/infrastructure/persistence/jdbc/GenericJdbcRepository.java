@@ -407,6 +407,168 @@ public abstract class GenericJdbcRepository<T extends BaseEntity> {
         }
     }
 
+    // =========================================================
+    // RESTORE BY UUID
+    // =========================================================
+
+    /**
+     * Restaura uma entidade removida por soft delete (`deleted_at = NULL`).
+     * Incrementa a versão.
+     */
+    public int restoreById(UUID id) {
+
+        String sql = """
+                UPDATE %s
+                SET
+                    deleted_at = NULL,
+                    version = version + 1
+                WHERE id = ?
+                  AND deleted_at IS NOT NULL
+                """.formatted(getTableName());
+
+        try (
+                Connection connection = dataSource.getConnection();
+                PreparedStatement statement =
+                        connection.prepareStatement(sql)
+        ) {
+
+            statement.setObject(1, id);
+
+            return statement.executeUpdate();
+
+        } catch (SQLException e) {
+            throw new IllegalStateException(
+                    "Error restoring entity by UUID: " + id,
+                    e
+            );
+        }
+    }
+
+
+    // =========================================================
+    // RESTORE ALL BY UUIDS
+    // =========================================================
+
+    /**
+     * Restaura múltiplas entidades removidas por soft delete (`deleted_at = NULL`).
+     * Incrementa a versão de cada registro afetado.
+     */
+    public int restoreAllByIds(List<UUID> ids) {
+
+        if (ids == null || ids.isEmpty()) {
+            return 0;
+        }
+
+        String placeholders = placeholders(ids.size());
+
+        String sql = """
+                UPDATE %s
+                SET
+                    deleted_at = NULL,
+                    version = version + 1
+                WHERE id IN (%s)
+                  AND deleted_at IS NOT NULL
+                """.formatted(
+                getTableName(),
+                placeholders
+        );
+
+        try (
+                Connection connection = dataSource.getConnection();
+                PreparedStatement statement =
+                        connection.prepareStatement(sql)
+        ) {
+
+            for (int i = 0; i < ids.size(); i++) {
+                statement.setObject(i + 1, ids.get(i));
+            }
+
+            return statement.executeUpdate();
+
+        } catch (SQLException e) {
+            throw new IllegalStateException(
+                    "Error restoring entities by UUIDs.",
+                    e
+            );
+        }
+    }
+
+
+    // =========================================================
+    // HARD DELETE BY UUID (FORCE DELETE)
+    // =========================================================
+
+    /**
+     * Remove fisicamente a linha do banco de dados (Hard Delete).
+     */
+    public int deleteForceById(UUID id) {
+
+        String sql = """
+                DELETE FROM %s
+                WHERE id = ?
+                """.formatted(getTableName());
+
+        try (
+                Connection connection = dataSource.getConnection();
+                PreparedStatement statement =
+                        connection.prepareStatement(sql)
+        ) {
+
+            statement.setObject(1, id);
+
+            return statement.executeUpdate();
+
+        } catch (SQLException e) {
+            throw new IllegalStateException(
+                    "Error force deleting entity by UUID: " + id,
+                    e
+            );
+        }
+    }
+
+
+    // =========================================================
+    // HARD DELETE ALL BY UUIDS (FORCE DELETE ALL)
+    // =========================================================
+
+    /**
+     * Remove fisicamente múltiplas linhas do banco de dados (Hard Delete).
+     */
+    public int deleteAllForceById(List<UUID> ids) {
+
+        if (ids == null || ids.isEmpty()) {
+            return 0;
+        }
+
+        String placeholders = placeholders(ids.size());
+
+        String sql = """
+                DELETE FROM %s
+                WHERE id IN (%s)
+                """.formatted(
+                getTableName(),
+                placeholders
+        );
+
+        try (
+                Connection connection = dataSource.getConnection();
+                PreparedStatement statement =
+                        connection.prepareStatement(sql)
+        ) {
+
+            for (int i = 0; i < ids.size(); i++) {
+                statement.setObject(i + 1, ids.get(i));
+            }
+
+            return statement.executeUpdate();
+
+        } catch (SQLException e) {
+            throw new IllegalStateException(
+                    "Error force deleting entities by UUIDs.",
+                    e
+            );
+        }
+    }
 
     // =========================================================
     // JDBC PARAMETER
@@ -431,6 +593,7 @@ public abstract class GenericJdbcRepository<T extends BaseEntity> {
                 value
         );
     }
+
 
 
     // =========================================================
