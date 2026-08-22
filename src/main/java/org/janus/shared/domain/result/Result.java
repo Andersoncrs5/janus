@@ -44,6 +44,10 @@ public class Result<T> {
         return new Result<>(null, List.of(), 200);
     }
 
+    public static <T> Result<T> created(T value) {
+        return new Result<>(value, List.of(), 201);
+    }
+
     public static <T> Result<T> success(T value) {
         return new Result<>(value, List.of(), 200);
     }
@@ -62,6 +66,10 @@ public class Result<T> {
 
     public static <T> Result<T> failure(String error, int status) {
         return new Result<>(null, List.of(error), status);
+    }
+
+    public static <T> Result<T> notFound(String error) {
+        return new Result<>(null, List.of(error), 404);
     }
 
     public static <T> Result<T> failure(List<String> errors, int status) {
