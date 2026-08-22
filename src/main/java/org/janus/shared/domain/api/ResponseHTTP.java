@@ -1,4 +1,4 @@
-package org.janus.modules.identity.adapter.in.web.shared;
+package org.janus.shared.domain.api;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import io.opentelemetry.api.trace.Span;
