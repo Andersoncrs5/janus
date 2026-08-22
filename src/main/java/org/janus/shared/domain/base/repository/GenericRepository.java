@@ -9,6 +9,8 @@ public interface GenericRepository<T extends BaseEntity, ID> {
 
     T save(T entity);
 
+    List<T> findAll();
+
     T insert(T entity);
 
     int deleteById(ID id);

@@ -1,7 +1,10 @@
 package org.janus.shared.infrastructure.persistence.jdbc;
 
 import jakarta.inject.Inject;
+import org.janus.shared.domain.base.filter.FilterBaseDTO;
 import org.janus.shared.domain.base.model.BaseEntity;
+import org.janus.shared.domain.page.Page;
+import org.janus.shared.domain.queries.Query;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -20,6 +23,24 @@ public abstract class GenericJdbcRepository<T extends BaseEntity> {
     // =========================================================
     // REQUIRED
     // =========================================================
+
+
+    public List<T> findAll() {
+        String sql = String.format("SELECT * FROM %s WHERE deleted_at IS NULL", getTableName());
+        List<T> result = new ArrayList<>();
+
+        try (var conn = dataSource.getConnection();
+             var stmt = conn.prepareStatement(sql);
+             var rs = stmt.executeQuery()) {
+
+            while (rs.next()) {
+                result.add(mapRow(rs));
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Erro ao listar registros de " + getTableName(), e);
+        }
+        return result;
+    }
 
     /**
      * Nome da tabela usada pelo repository.
@@ -613,4 +634,226 @@ public abstract class GenericJdbcRepository<T extends BaseEntity> {
 
         return joiner.toString();
     }
+
+    protected Page<T> findAll(
+            Query query,
+            List<String> orderBy,
+            FilterBaseDTO filter
+    ) {
+
+        String where = query.whereClause();
+
+        String finalWhere;
+
+        if (where.isBlank()) {
+            finalWhere = "WHERE deleted_at IS NULL";
+        } else {
+            finalWhere = where + " AND deleted_at IS NULL";
+        }
+
+        String orderClause = String.join(
+                ", ",
+                orderBy
+        );
+
+        String countSql = """
+            SELECT COUNT(*)
+            FROM %s
+            %s
+            """.formatted(
+                getTableName(),
+                finalWhere
+        );
+
+        String selectSql = """
+            SELECT *
+            FROM %s
+            %s
+            ORDER BY %s
+            LIMIT ?
+            OFFSET ?
+            """.formatted(
+                getTableName(),
+                finalWhere,
+                orderClause
+        );
+
+        try (Connection connection = dataSource.getConnection()) {
+
+            long total = executeCount(
+                    connection,
+                    countSql,
+                    query.parameters()
+            );
+
+            List<T> content = executeSelect(
+                    connection,
+                    selectSql,
+                    query.parameters(),
+                    filter
+            );
+
+            return new Page<>(
+                    content,
+                    total,
+                    filter.getPage(),
+                    filter.getSize()
+            );
+
+        } catch (SQLException e) {
+            throw new IllegalStateException(
+                    "Error finding paginated entities from: "
+                            + getTableName(),
+                    e
+            );
+        }
+    }
+
+    protected Query buildBaseFilter(FilterBaseDTO filter) {
+
+        Query query = new Query();
+
+        if (filter.getId() != null) {
+            query.and(
+                    "id = ?",
+                    filter.getId()
+            );
+        }
+
+        if (filter.getVersionMin() != null) {
+            query.and(
+                    "version >= ?",
+                    filter.getVersionMin()
+            );
+        }
+
+        if (filter.getVersionMax() != null) {
+            query.and(
+                    "version <= ?",
+                    filter.getVersionMax()
+            );
+        }
+
+        if (filter.getCreatedAtMin() != null) {
+            query.and(
+                    "created_at >= ?",
+                    filter.getCreatedAtMin()
+            );
+        }
+
+        if (filter.getCreatedAtMax() != null) {
+            query.and(
+                    "created_at <= ?",
+                    filter.getCreatedAtMax()
+            );
+        }
+
+        if (filter.getUpdatedAtMin() != null) {
+            query.and(
+                    "updated_at >= ?",
+                    filter.getUpdatedAtMin()
+            );
+        }
+
+        if (filter.getUpdatedAtMax() != null) {
+            query.and(
+                    "updated_at <= ?",
+                    filter.getUpdatedAtMax()
+            );
+        }
+
+        return query;
+    }
+
+    private long executeCount(
+            Connection connection,
+            String sql,
+            List<Object> parameters
+    ) throws SQLException {
+
+        try (
+                PreparedStatement statement =
+                        connection.prepareStatement(sql)
+        ) {
+
+            bindParameters(
+                    statement,
+                    parameters
+            );
+
+            try (ResultSet rs = statement.executeQuery()) {
+
+                if (!rs.next()) {
+                    return 0;
+                }
+
+                return rs.getLong(1);
+            }
+        }
+    }
+
+
+    // =========================================================
+    // SELECT PAGINATED
+    // =========================================================
+
+    private List<T> executeSelect(
+            Connection connection,
+            String sql,
+            List<Object> parameters,
+            FilterBaseDTO filter
+    ) throws SQLException {
+
+        List<T> result = new ArrayList<>();
+
+        try (
+                PreparedStatement statement =
+                        connection.prepareStatement(sql)
+        ) {
+
+            int index = bindParameters(
+                    statement,
+                    parameters
+            );
+
+            statement.setInt(
+                    index++,
+                    filter.getSize()
+            );
+
+            statement.setInt(
+                    index,
+                    filter.getOffset()
+            );
+
+            try (ResultSet rs = statement.executeQuery()) {
+
+                while (rs.next()) {
+                    result.add(mapRow(rs));
+                }
+            }
+        }
+
+        return result;
+    }
+
+    private int bindParameters(
+            PreparedStatement statement,
+            List<Object> parameters
+    ) throws SQLException {
+
+        int index = 1;
+
+        for (Object parameter : parameters) {
+
+            setParameter(
+                    statement,
+                    index++,
+                    parameter
+            );
+        }
+
+        return index;
+    }
+
 }
