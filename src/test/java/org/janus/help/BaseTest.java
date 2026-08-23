@@ -2,6 +2,8 @@ package org.janus.help;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.inject.Inject;
+import org.janus.modules.authorization.adapter.out.persistence.repository.RoleRepositoryJdbc;
+import org.janus.modules.authorization.domain.entity.RoleEntity;
 import org.janus.modules.identity.domain.entity.UserCredentialsEntity;
 import org.janus.modules.identity.domain.entity.UserEntity;
 import org.janus.modules.identity.ports.out.UserCredentialRepository;
@@ -18,6 +20,9 @@ public class BaseTest {
 
     @Inject
     protected UserRepository userRepository;
+
+    @Inject
+    protected RoleRepositoryJdbc roleRepository;
 
     @Inject
     protected UserCredentialRepository userCredentialRepository;
@@ -86,4 +91,21 @@ public class BaseTest {
                 .updatedAt(OffsetDateTime.now())
                 .build();
     }
+
+    protected RoleEntity createSampleRole(String name, String slug) {
+        RoleEntity role = new RoleEntity();
+        role.setId(UUID.randomUUID());
+        role.setName(name);
+        role.setSlug(slug);
+        role.setDescription("Descrição da role " + name);
+        role.setIsActive(true);
+        role.setIsSystem(false);
+        return role;
+    }
+
+    protected RoleEntity initRole(String name, String slug) {
+        RoleEntity role = createSampleRole(name, slug);
+        return roleRepository.insert(role);
+    }
+
 }
