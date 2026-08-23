@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.experimental.SuperBuilder;
+import org.jspecify.annotations.Nullable;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -20,6 +21,7 @@ public class BaseEntity {
     private Long version;
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
+    @Nullable
     private OffsetDateTime deletedAt;
 
     public void markAsDeleted() {
