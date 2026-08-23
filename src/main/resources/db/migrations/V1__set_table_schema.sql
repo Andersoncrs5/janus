@@ -237,7 +237,6 @@ CREATE TABLE user_roles (
     expires_at TIMESTAMPTZ,
     assigned_by UUID,
     version BIGINT NOT NULL DEFAULT 0,
-    assigned_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMPTZ,
@@ -250,6 +249,12 @@ CREATE TABLE user_roles (
         FOREIGN KEY (role_id)
         REFERENCES roles(id)
         ON DELETE CASCADE,
+
+    CONSTRAINT fk_user_roles_assigned_by
+        FOREIGN KEY (assigned_by)
+        REFERENCES users(id)
+        ON DELETE SET NULL,
+
     CONSTRAINT uk_user_role_ids_user_roles UNIQUE (user_id, role_id),
     CONSTRAINT ck_user_roles_version CHECK (version >= 0)
 );
