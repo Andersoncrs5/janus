@@ -41,6 +41,9 @@ public class FilterBaseDTO {
     @QueryParam("deletedAtMax")
     private OffsetDateTime deletedAtMax;
 
+    @QueryParam("seeDeleted")
+    private Boolean seeDeleted;
+
     @QueryParam("page")
     private int page = 0;
 
