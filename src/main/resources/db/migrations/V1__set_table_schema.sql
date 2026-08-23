@@ -1,10 +1,7 @@
--- CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA public;
-
 -- =========================================================
 -- JANUS IAM
 -- V1.0.0
 -- =========================================================
-
 
 -- =========================================================
 -- 1. USERS
@@ -20,6 +17,7 @@ CREATE TABLE users (
     failed_login_attempts INTEGER NOT NULL DEFAULT 0,
     locked_until TIMESTAMPTZ,
     last_login_at TIMESTAMPTZ,
+
     version BIGINT NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -41,11 +39,9 @@ CREATE TABLE users (
         CHECK (version >= 0),
 
     CONSTRAINT uk_email_user UNIQUE (email),
-
     CONSTRAINT uk_username_user UNIQUE (username)
 );
 
--- Unicidade considerando Soft Delete (permitindo reuso se deletado)
 CREATE UNIQUE INDEX uk_users_active_email
     ON users (email)
     WHERE deleted_at IS NULL;
@@ -144,6 +140,7 @@ CREATE TABLE refresh_tokens (
     user_id UUID NOT NULL,
     token_hash VARCHAR(255) NOT NULL,
     is_used BOOLEAN NOT NULL DEFAULT FALSE,
+    replaced_by_token_id UUID,
     is_revoked BOOLEAN NOT NULL DEFAULT FALSE,
     expires_at TIMESTAMPTZ NOT NULL,
     version BIGINT NOT NULL DEFAULT 0,
@@ -191,13 +188,16 @@ CREATE INDEX idx_refresh_tokens_active
 CREATE TABLE roles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(100) NOT NULL,
+    slug VARCHAR(150) NOT NULL,
     description TEXT,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    is_system BOOLEAN NOT NULL DEFAULT FALSE,
     version BIGINT NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMPTZ,
 
+    CONSTRAINT uk_roles_slug UNIQUE (slug),
     CONSTRAINT uk_roles_name UNIQUE (name),
     CONSTRAINT ck_roles_name_not_empty CHECK (TRIM(name) <> ''),
     CONSTRAINT ck_roles_version CHECK (version >= 0)
@@ -234,6 +234,8 @@ CREATE TABLE user_roles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL,
     role_id UUID NOT NULL,
+    expires_at TIMESTAMPTZ,
+    assigned_by UUID,
     version BIGINT NOT NULL DEFAULT 0,
     assigned_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -265,6 +267,8 @@ CREATE TABLE role_permissions (
     role_id UUID NOT NULL,
     permission_id UUID NOT NULL,
     version BIGINT NOT NULL DEFAULT 0,
+    expires_at TIMESTAMPTZ,
+    assigned_by UUID,
     assigned_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -295,6 +299,7 @@ CREATE TABLE mfa_factors (
     user_id UUID NOT NULL,
     type VARCHAR(30) NOT NULL,
     secret VARCHAR(1024),
+    friendly_name VARCHAR(100),
     is_enabled BOOLEAN NOT NULL DEFAULT FALSE,
     version BIGINT NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -325,31 +330,6 @@ CREATE INDEX idx_mfa_factors_enabled
 -- 10. AUDIT_LOGS
 -- =========================================================
 
-CREATE TABLE audit_logs (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID,
-    event VARCHAR(150) NOT NULL,
-    ip_address VARCHAR(45),
-    user_agent TEXT,
-    metadata JSONB,
-    version BIGINT NOT NULL DEFAULT 0,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMPTZ,
-
-    CONSTRAINT fk_audit_logs_user
-        FOREIGN KEY (user_id)
-        REFERENCES users(id)
-        ON DELETE SET NULL,
-    CONSTRAINT ck_audit_logs_event_not_empty
-        CHECK (TRIM(event) <> ''),
-    CONSTRAINT ck_audit_logs_version
-        CHECK (version >= 0)
-);
-
-CREATE INDEX idx_audit_logs_user_id
-    ON audit_logs(user_id);
-
 
 -- =========================================================
 -- UPDATED_AT TRIGGER FUNCTION
@@ -367,7 +347,7 @@ $$;
 
 
 -- =========================================================
--- TRIGGERS DE UPDATED_AT PARA TODAS AS ENTIDADES
+-- TRIGGERS DE UPDATED_AT PARA ENTIDADES MUTÁVEIS
 -- =========================================================
 
 CREATE TRIGGER trg_users_updated_at
@@ -404,8 +384,4 @@ FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 CREATE TRIGGER trg_mfa_factors_updated_at
 BEFORE UPDATE ON mfa_factors
-FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-
-CREATE TRIGGER trg_audit_logs_updated_at
-BEFORE UPDATE ON audit_logs
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
