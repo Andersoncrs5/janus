@@ -1,15 +1,65 @@
+mp:
+  jwt:
+    verify:
+      publickey:
+        location: publicKey.pem
+      issuer: https://controllibrary.org
+
 quarkus:
+  smallrye-jwt:
+    sign:
+      key:
+        location: privateKey.pem
+    verify:
+      key:
+        location: publicKey.pem
+      issuer: "https://controllibrary.org"
+
+    identity-claim: upn
+    group-claim: groups
+
+  http:
+    cors:
+      enabled: true
+      origins: "${FRONT_URL:http://localhost:3000}"
+      methods: GET,POST,PUT,DELETE,OPTIONS
+      headers: "*"
+  banner:
+    enabled: false
+
   datasource:
     db-kind: postgresql
-    username: janus
-    password: janus
-
-    jdbc:
-      url: jdbc:postgresql://localhost:5432/janus?currentSchema=public
-      max-size: 20
-      min-size: 5
-      telemetry: true
 
   flyway:
     migrate-at-start: true
-    locations: db/migration
+    locations: db/migrations
+
+  shedlock:
+    defaults-lock-at-most-for: PT30M
+    defaults-lock-at-least-for: PT0S
+
+janus:
+  security:
+    argon2:
+      iterations: 2
+      memory-kb: 65536
+      parallelism: 1
+
+"%prod":
+  quarkus:
+    datasource:
+      username: janus
+      password: janus
+      jdbc:
+        url: jdbc:postgresql://localhost:5432/janus
+        max-size: 30
+        min-size: 5
+        telemetry: true
+
+"%test":
+  quarkus:
+    datasource:
+      jdbc:
+        url: ~
+    flyway:
+      migrate-at-start: true

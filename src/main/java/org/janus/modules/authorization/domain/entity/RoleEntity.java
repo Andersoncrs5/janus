@@ -11,7 +11,7 @@ import org.janus.shared.domain.base.model.BaseEntity;
 @NoArgsConstructor
 public class RoleEntity extends BaseEntity {
 
-    public static final String TABLE_NAME = "public.roles";
+    public static final String TABLE_NAME = "roles";
 
     private String name;
     private String description;
