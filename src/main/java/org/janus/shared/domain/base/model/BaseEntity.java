@@ -22,4 +22,12 @@ public class BaseEntity {
     private OffsetDateTime updatedAt;
     private OffsetDateTime deletedAt;
 
+    public void markAsDeleted() {
+        setDeletedAt(OffsetDateTime.now());
+    }
+
+    public void incrementVersion() {
+        this.version = (this.version == null ? 0L : this.version) + 1L;
+    }
+
 }
