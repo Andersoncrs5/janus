@@ -3,7 +3,9 @@ package org.janus.help;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.inject.Inject;
 import org.janus.modules.authorization.adapter.out.persistence.repository.RoleRepositoryJdbc;
+import org.janus.modules.authorization.adapter.out.persistence.repository.UserRoleRepositoryJdbc;
 import org.janus.modules.authorization.domain.entity.RoleEntity;
+import org.janus.modules.authorization.domain.entity.UserRoleEntity;
 import org.janus.modules.identity.domain.entity.UserCredentialsEntity;
 import org.janus.modules.identity.domain.entity.UserEntity;
 import org.janus.modules.identity.ports.out.UserCredentialRepository;
@@ -22,6 +24,9 @@ public class BaseTest {
     protected UserRepository userRepository;
 
     @Inject
+    protected UserRoleRepositoryJdbc userRoleRepository;
+
+    @Inject
     protected RoleRepositoryJdbc roleRepository;
 
     @Inject
@@ -35,9 +40,21 @@ public class BaseTest {
 
     @BeforeEach
     void setup() {
+        this.userRoleRepository.deleteAll();
         this.inboxRepository.deleteAll();
         this.userCredentialRepository.deleteAll();
         this.userRepository.deleteAll();
+    }
+
+    protected UserRoleEntity initUserRole(UUID userId, UUID roleId, OffsetDateTime expiresAt) {
+        UserRoleEntity userRole = new UserRoleEntity();
+        userRole.setId(UUID.randomUUID());
+        userRole.setUserId(userId);
+        userRole.setRoleId(roleId);
+        userRole.setExpiresAt(expiresAt);
+        userRole.setAssignedById(userId);
+
+        return userRoleRepository.insert(userRole);
     }
 
     protected InboxEntity createSampleInbox() {
