@@ -1,15 +1,12 @@
 package org.janus.shared.domain.queries;
 
 import jakarta.enterprise.context.ApplicationScoped;
+import lombok.Getter;
 
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Types;
+import javax.sql.DataSource;
+import java.sql.*;
 import java.time.OffsetDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.StringJoiner;
+import java.util.*;
 
 @ApplicationScoped
 public class Query {
@@ -20,6 +17,238 @@ public class Query {
     private final List<Object> parameters =
             new ArrayList<>();
 
+    private final List<String> joins = new ArrayList<>();
+
+    @FunctionalInterface
+    public interface RowMapper<T> {
+        T map(ResultSet rs) throws SQLException;
+    }
+
+    public static class Insert extends QueryBuilder<Insert> {
+        private final Map<String, Object> values = new LinkedHashMap<>();
+
+        public Insert(String table) {
+            super(table);
+        }
+
+        public Insert value(String column, Object value) {
+            if (value != null) {
+                values.put(column, value);
+            }
+            return this;
+        }
+
+        public String buildSql(List<String> returningColumns) {
+            String columns = String.join(", ", values.keySet());
+            String placeholders = String.join(", ", values.keySet().stream().map(k -> "?").toList());
+            String returning = returningColumns.isEmpty() ? "" : " RETURNING " + String.join(", ", returningColumns);
+
+            return "INSERT INTO %s (%s) VALUES (%s)%s".formatted(table, columns, placeholders, returning).trim();
+        }
+
+        public <T> T executeAndMap(DataSource dataSource, List<String> returningColumns, RowMapper<T> mapper) {
+            String sql = buildSql(returningColumns);
+            try (Connection connection = dataSource.getConnection();
+                 PreparedStatement statement = connection.prepareStatement(sql)) {
+
+                int index = 1;
+                for (Object val : values.values()) {
+                    statement.setObject(index++, val);
+                }
+
+                try (ResultSet rs = statement.executeQuery()) {
+                    if (rs.next()) {
+                        return mapper.map(rs);
+                    }
+                    throw new IllegalStateException("Insert did not return any rows for table: " + table);
+                }
+            } catch (SQLException e) {
+                throw new IllegalStateException("Error executing INSERT for table: " + table, e);
+            }
+        }
+    }
+
+    // =========================================================
+    // UPDATE
+    // =========================================================
+    public static class Update extends QueryBuilder<Update> {
+        private final List<String> setClauses = new ArrayList<>();
+
+        public Update(String table) {
+            super(table);
+        }
+
+        public Update set(String column, Object value) {
+            setClauses.add(column + " = ?");
+            parameters.add(value);
+            return this;
+        }
+
+        public Update setExpression(String columnExpression) {
+            setClauses.add(columnExpression);
+            return this;
+        }
+
+        public String buildSql() {
+            String setClause = String.join(", ", setClauses);
+            return "UPDATE %s SET %s %s".formatted(table, setClause, buildWhereClause()).trim();
+        }
+
+        public boolean execute(DataSource dataSource) {
+            try (Connection connection = dataSource.getConnection();
+                 PreparedStatement statement = connection.prepareStatement(buildSql())) {
+
+                for (int i = 0; i < parameters.size(); i++) {
+                    statement.setObject(i + 1, parameters.get(i));
+                }
+                return statement.executeUpdate() > 0;
+            } catch (SQLException e) {
+                throw new IllegalStateException("Error executing UPDATE for table: " + table, e);
+            }
+        }
+    }
+
+    public static class Delete {
+        private final String table;
+        private final List<String> conditions = new ArrayList<>();
+        private final List<Object> params = new ArrayList<>();
+
+        public Delete(String table) {
+            this.table = table;
+        }
+
+        public Delete where(String column, Object value) {
+            if (value != null) {
+                conditions.add(column + " = ?");
+                params.add(value);
+            }
+            return this;
+        }
+
+        public String buildSql() {
+            String whereClause = conditions.isEmpty() ? "" : "WHERE " + String.join(" AND ", conditions);
+            return "DELETE FROM %s %s".formatted(table, whereClause).trim();
+        }
+
+        public int execute(DataSource dataSource) {
+            try (
+                    Connection connection = dataSource.getConnection();
+                    PreparedStatement statement = connection.prepareStatement(buildSql())
+            ) {
+                for (int i = 0; i < params.size(); i++) {
+                    statement.setObject(i + 1, params.get(i));
+                }
+                return statement.executeUpdate();
+            } catch (SQLException e) {
+                throw new IllegalStateException("Error executing DELETE query for table: " + table, e);
+            }
+        }
+    }
+
+    @Getter
+    public static class Select extends QueryBuilder<Select> {
+        private Integer limit;
+
+        public Select(String table) {
+            super(table);
+        }
+
+        public Select where(String column, Object value) {
+            if (value != null) {
+                this.conditions.add(column + " = ?");
+                this.parameters.add(value);
+            }
+            return this;
+        }
+
+        public Select limit(int limit) {
+            this.limit = limit;
+            return this;
+        }
+
+        public String buildSql() {
+            String limitClause = limit != null ? " LIMIT " + limit : "";
+
+            return "SELECT * FROM %s %s%s%s"
+                    .formatted(table, buildJoinsClause(), buildWhereClause(), limitClause)
+                    .trim();
+        }
+
+        public <T> Optional<T> findFirst(DataSource dataSource, RowMapper<T> mapper) {
+            this.limit = 1;
+
+            try (
+                    Connection connection = dataSource.getConnection();
+                    PreparedStatement statement = connection.prepareStatement(buildSql())
+            ) {
+                for (int i = 0; i < parameters.size(); i++) {
+                    statement.setObject(i + 1, parameters.get(i));
+                }
+
+                try (ResultSet rs = statement.executeQuery()) {
+                    if (rs.next()) {
+                        return Optional.of(mapper.map(rs));
+                    }
+                    return Optional.empty();
+                }
+            } catch (SQLException e) {
+                throw new IllegalStateException("Error executing SELECT (findFirst) query for table: " + table, e);
+            }
+        }
+
+        public <T> List<T> findAll(DataSource dataSource, RowMapper<T> mapper) {
+            List<T> results = new ArrayList<>();
+            try (
+                    Connection connection = dataSource.getConnection();
+                    PreparedStatement statement = connection.prepareStatement(buildSql())
+            ) {
+                for (int i = 0; i < parameters.size(); i++) {
+                    statement.setObject(i + 1, parameters.get(i));
+                }
+
+                try (ResultSet rs = statement.executeQuery()) {
+                    while (rs.next()) {
+                        results.add(mapper.map(rs));
+                    }
+                    return results;
+                }
+            } catch (SQLException e) {
+                throw new IllegalStateException("Error executing SELECT (findAll) query for table: " + table, e);
+            }
+        }
+    }
+
+    @Getter
+    public static class Exists extends QueryBuilder<Exists> {
+
+        public Exists(String table) {
+            super(table);
+        }
+
+        public String buildSql() {
+            return "SELECT EXISTS (SELECT 1 FROM %s %s%s)".formatted(
+                    table,
+                    buildJoinsClause(),
+                    buildWhereClause()
+            ).trim();
+        }
+
+        public boolean execute(DataSource dataSource) {
+            try (
+                    Connection connection = dataSource.getConnection();
+                    PreparedStatement statement = connection.prepareStatement(buildSql())
+            ) {
+                for (int i = 0; i < parameters.size(); i++) {
+                    statement.setObject(i + 1, parameters.get(i));
+                }
+                try (ResultSet rs = statement.executeQuery()) {
+                    return rs.next() && rs.getBoolean(1);
+                }
+            } catch (SQLException e) {
+                throw new IllegalStateException("Error executing EXISTS query for table: " + table, e);
+            }
+        }
+    }
 
     // =========================================================
     // AND
@@ -32,11 +261,8 @@ public class Query {
 
         conditions.add(condition);
 
-        for (Object value : values) {
-            parameters.add(value);
-        }
+        parameters.addAll(Arrays.asList(values));
     }
-
 
     // =========================================================
     // OR
@@ -51,8 +277,7 @@ public class Query {
             conditions.add(condition);
         } else {
             String previous =
-                    conditions.remove(
-                            conditions.size() - 1
+                    conditions.removeLast(
                     );
 
             conditions.add(
@@ -64,11 +289,8 @@ public class Query {
             );
         }
 
-        for (Object value : values) {
-            parameters.add(value);
-        }
+        parameters.addAll(Arrays.asList(values));
     }
-
 
     // =========================================================
     // IN
@@ -642,4 +864,73 @@ public class Query {
 
         return (Boolean) value;
     }
+
+    // =========================================================
+// INNER JOIN
+// =========================================================
+
+    public void innerJoin(
+            String table,
+            String condition
+    ) {
+        joins.add(
+                "INNER JOIN " + table + " ON " + condition
+        );
+    }
+
+
+// =========================================================
+// LEFT JOIN
+// =========================================================
+
+    public void leftJoin(
+            String table,
+            String condition
+    ) {
+        joins.add(
+                "LEFT JOIN " + table + " ON " + condition
+        );
+    }
+
+
+// =========================================================
+// RIGHT JOIN
+// =========================================================
+
+    public void rightJoin(
+            String table,
+            String condition
+    ) {
+        joins.add(
+                "RIGHT JOIN " + table + " ON " + condition
+        );
+    }
+
+
+// =========================================================
+// FULL JOIN
+// =========================================================
+
+    public void fullJoin(
+            String table,
+            String condition
+    ) {
+        joins.add(
+                "FULL JOIN " + table + " ON " + condition
+        );
+    }
+
+
+// =========================================================
+// CROSS JOIN
+// =========================================================
+
+    public void crossJoin(
+            String table
+    ) {
+        joins.add(
+                "CROSS JOIN " + table
+        );
+    }
+
 }
