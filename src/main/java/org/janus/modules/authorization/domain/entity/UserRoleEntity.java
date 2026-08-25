@@ -17,6 +17,7 @@ import java.util.UUID;
 @AllArgsConstructor
 @NoArgsConstructor
 public class UserRoleEntity extends BaseEntity {
+    public static final String TABLE_NAME = "user_roles";
 
     private UUID userId;
 
