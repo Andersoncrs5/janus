@@ -113,11 +113,17 @@ public class BaseTest {
         RoleEntity role = new RoleEntity();
         role.setId(UUID.randomUUID());
         role.setName(name);
-        role.setSlug(slug);
+        role.setSlug(slug + UUID.randomUUID());
         role.setDescription("Descrição da role " + name);
         role.setIsActive(true);
         role.setIsSystem(false);
         return role;
+    }
+
+    protected RoleEntity initRole() {
+        var key = UUID.randomUUID().toString();
+        RoleEntity role = createSampleRole("role name" + key, "role-name-" + key);
+        return roleRepository.insert(role);
     }
 
     protected RoleEntity initRole(String name, String slug) {
