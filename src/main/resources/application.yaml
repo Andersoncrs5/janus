@@ -39,6 +39,29 @@ quarkus:
     defaults-lock-at-least-for: PT0S
 
 janus:
+  bootstrap:
+    master:
+      username: admin
+      email: admin@gmail.com
+      full-name: System Administrator
+      password: MasterPassword123!
+      roles:
+        - admin
+        - user
+    roles:
+      - name: MASTER
+        slug: master
+        description: System Master Role
+        is-system: true
+      - name: ADMINISTRADOR
+        slug: admin
+        description: System Administrator Role
+        is-system: true
+      - name: USER
+        slug: user
+        description: Standard User Role
+        is-system: true
+
   security:
     argon2:
       iterations: 2
