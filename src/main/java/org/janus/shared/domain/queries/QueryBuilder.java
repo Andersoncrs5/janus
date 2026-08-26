@@ -3,6 +3,7 @@ package org.janus.shared.domain.queries;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.StringJoiner;
 
 @SuppressWarnings("unchecked")
 public abstract class QueryBuilder<T extends QueryBuilder<T>> {
@@ -23,6 +24,14 @@ public abstract class QueryBuilder<T extends QueryBuilder<T>> {
     public T where(String column, Object value) {
         if (value != null) {
             this.conditions.add(column + " = ?");
+            this.parameters.add(value);
+        }
+        return (T) this;
+    }
+
+    public T whereIgnoreCase(String column, Object value) {
+        if (value != null) {
+            this.conditions.add(column.toLowerCase() + " = LOWER(?)");
             this.parameters.add(value);
         }
         return (T) this;
@@ -49,6 +58,107 @@ public abstract class QueryBuilder<T extends QueryBuilder<T>> {
     // =========================================================
     // OUTRAS CONDIÇÕES (AND / OR)
     // =========================================================
+
+    public void andIn(
+            String column,
+            List<?> values
+    ) {
+
+        if (values == null || values.isEmpty()) {
+            return;
+        }
+
+        String placeholders =
+                placeholders(values.size());
+
+        conditions.add(
+                column +
+                        " IN (" +
+                        placeholders +
+                        ")"
+        );
+
+        parameters.addAll(values);
+    }
+
+
+    // =========================================================
+    // NOT IN
+    // =========================================================
+
+    public void andNotIn(
+            String column,
+            List<?> values
+    ) {
+
+        if (values == null || values.isEmpty()) {
+            return;
+        }
+
+        String placeholders =
+                placeholders(values.size());
+
+        conditions.add(
+                column +
+                        " NOT IN (" +
+                        placeholders +
+                        ")"
+        );
+
+        parameters.addAll(values);
+    }
+
+    // =========================================================
+    // IS NOT NULL
+    // =========================================================
+
+    public void andIsNotNull(
+            String column
+    ) {
+
+        conditions.add(
+                column + " IS NOT NULL"
+        );
+    }
+
+    // =========================================================
+    // IS NULL
+    // =========================================================
+
+    public void andIsNull(
+            String column
+    ) {
+
+        conditions.add(
+                column + " IS NULL"
+        );
+    }
+
+    // =========================================================
+    // BETWEEN
+    // =========================================================
+
+    public void andBetween(
+            String column,
+            Object min,
+            Object max
+    ) {
+
+        if (min != null) {
+            and(
+                    column + " >= ?",
+                    min
+            );
+        }
+
+        if (max != null) {
+            and(
+                    column + " <= ?",
+                    max
+            );
+        }
+    }
+
     public T and(String condition, Object... values) {
         conditions.add(condition);
         parameters.addAll(Arrays.asList(values));
@@ -85,4 +195,169 @@ public abstract class QueryBuilder<T extends QueryBuilder<T>> {
     protected String buildJoinsClause() {
         return joins.isEmpty() ? "" : String.join(" ", joins) + " ";
     }
+
+
+    private String placeholders(
+            int count
+    ) {
+
+        StringJoiner joiner =
+                new StringJoiner(", ");
+
+        for (int i = 0; i < count; i++) {
+            joiner.add("?");
+        }
+
+        return joiner.toString();
+    }
+
+
+    // =========================================================
+    // NOT EQUAL
+    // =========================================================
+
+    public void andNotEqual(
+            String column,
+            Object value
+    ) {
+
+        if (value == null) {
+            return;
+        }
+
+        and(
+                column + " <> ?",
+                value
+        );
+    }
+
+
+    // =========================================================
+    // GREATER THAN
+    // =========================================================
+
+    public void andGreaterThan(
+            String column,
+            Object value
+    ) {
+
+        if (value == null) {
+            return;
+        }
+
+        and(
+                column + " > ?",
+                value
+        );
+    }
+
+
+    // =========================================================
+    // GREATER THAN OR EQUAL
+    // =========================================================
+
+    public void andGreaterThanOrEqual(
+            String column,
+            Object value
+    ) {
+
+        if (value == null) {
+            return;
+        }
+
+        and(
+                column + " >= ?",
+                value
+        );
+    }
+
+    public void andInCast(
+            String column,
+            List<?> values,
+            String sqlType
+    ) {
+
+        if (values == null || values.isEmpty()) {
+            return;
+        }
+
+        String placeholders = String.join(
+                ", ",
+                values.stream()
+                        .map(value -> "?::" + sqlType)
+                        .toList()
+        );
+
+        conditions.add(
+                column +
+                        " IN (" +
+                        placeholders +
+                        ")"
+        );
+
+        parameters.addAll(values);
+    }
+
+    // =========================================================
+    // LESS THAN
+    // =========================================================
+
+    public void andLessThan(
+            String column,
+            Object value
+    ) {
+
+        if (value == null) {
+            return;
+        }
+
+        and(
+                column + " < ?",
+                value
+        );
+    }
+
+
+    // =========================================================
+    // LESS THAN OR EQUAL
+    // =========================================================
+
+    public void andLessThanOrEqual(
+            String column,
+            Object value
+    ) {
+
+        if (value == null) {
+            return;
+        }
+
+        and(
+                column + " <= ?",
+                value
+        );
+    }
+
+
+    // =========================================================
+    // LIKE
+    // =========================================================
+
+    public void andLike(
+            String column,
+            String value
+    ) {
+
+        if (value == null || value.isBlank()) {
+            return;
+        }
+
+        and(
+                column + " LIKE ?",
+                "%" + value + "%"
+        );
+    }
+
+
+
+
 }

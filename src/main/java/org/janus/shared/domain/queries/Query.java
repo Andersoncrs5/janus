@@ -7,6 +7,7 @@ import javax.sql.DataSource;
 import java.sql.*;
 import java.time.OffsetDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @ApplicationScoped
 public class Query {
@@ -26,6 +27,7 @@ public class Query {
 
     public static class Insert extends QueryBuilder<Insert> {
         private final Map<String, Object> values = new LinkedHashMap<>();
+        private final Map<String, String> suffixes = new HashMap<>();
 
         public Insert(String table) {
             super(table);
@@ -38,9 +40,21 @@ public class Query {
             return this;
         }
 
+        public Insert value(String column, Object value, String expressionSuffix) {
+            if (value != null) {
+                values.put(column, value);
+                suffixes.put(column, expressionSuffix);
+            }
+            return this;
+        }
+
         public String buildSql(List<String> returningColumns) {
             String columns = String.join(", ", values.keySet());
-            String placeholders = String.join(", ", values.keySet().stream().map(k -> "?").toList());
+
+            String placeholders = values.keySet().stream()
+                    .map(col -> "?" + suffixes.getOrDefault(col, ""))
+                    .collect(Collectors.joining(", "));
+
             String returning = returningColumns.isEmpty() ? "" : " RETURNING " + String.join(", ", returningColumns);
 
             return "INSERT INTO %s (%s) VALUES (%s)%s".formatted(table, columns, placeholders, returning).trim();
@@ -81,6 +95,16 @@ public class Query {
         public Update set(String column, Object value) {
             setClauses.add(column + " = ?");
             parameters.add(value);
+            return this;
+        }
+
+        public Update set(String column, Object value, String expressionSuffix) {
+            if (value != null) {
+                setClauses.add(column + " = ?" + expressionSuffix);
+                parameters.add(value);
+            } else {
+                setClauses.add(column + " = NULL");
+            }
             return this;
         }
 
@@ -293,134 +317,6 @@ public class Query {
     }
 
     // =========================================================
-    // IN
-    // =========================================================
-
-    public void andIn(
-            String column,
-            List<?> values
-    ) {
-
-        if (values == null || values.isEmpty()) {
-            return;
-        }
-
-        String placeholders =
-                placeholders(values.size());
-
-        conditions.add(
-                column +
-                        " IN (" +
-                        placeholders +
-                        ")"
-        );
-
-        parameters.addAll(values);
-    }
-
-
-    // =========================================================
-    // NOT IN
-    // =========================================================
-
-    public void andNotIn(
-            String column,
-            List<?> values
-    ) {
-
-        if (values == null || values.isEmpty()) {
-            return;
-        }
-
-        String placeholders =
-                placeholders(values.size());
-
-        conditions.add(
-                column +
-                        " NOT IN (" +
-                        placeholders +
-                        ")"
-        );
-
-        parameters.addAll(values);
-    }
-
-
-    // =========================================================
-    // BETWEEN
-    // =========================================================
-
-    public void andBetween(
-            String column,
-            Object min,
-            Object max
-    ) {
-
-        if (min != null) {
-            and(
-                    column + " >= ?",
-                    min
-            );
-        }
-
-        if (max != null) {
-            and(
-                    column + " <= ?",
-                    max
-            );
-        }
-    }
-
-
-    // =========================================================
-    // IS NULL
-    // =========================================================
-
-    public void andIsNull(
-            String column
-    ) {
-
-        conditions.add(
-                column + " IS NULL"
-        );
-    }
-
-
-    // =========================================================
-    // IS NOT NULL
-    // =========================================================
-
-    public void andIsNotNull(
-            String column
-    ) {
-
-        conditions.add(
-                column + " IS NOT NULL"
-        );
-    }
-
-
-    // =========================================================
-    // LIKE
-    // =========================================================
-
-    public void andLike(
-            String column,
-            String value
-    ) {
-
-        if (value == null || value.isBlank()) {
-            return;
-        }
-
-        and(
-                column + " LIKE ?",
-                "%" + value + "%"
-        );
-    }
-
-
-    // =========================================================
     // ILIKE - POSTGRESQL
     // =========================================================
 
@@ -458,133 +354,6 @@ public class Query {
                 value
         );
     }
-
-
-    // =========================================================
-    // NOT EQUAL
-    // =========================================================
-
-    public void andNotEqual(
-            String column,
-            Object value
-    ) {
-
-        if (value == null) {
-            return;
-        }
-
-        and(
-                column + " <> ?",
-                value
-        );
-    }
-
-
-    // =========================================================
-    // GREATER THAN
-    // =========================================================
-
-    public void andGreaterThan(
-            String column,
-            Object value
-    ) {
-
-        if (value == null) {
-            return;
-        }
-
-        and(
-                column + " > ?",
-                value
-        );
-    }
-
-
-    // =========================================================
-    // GREATER THAN OR EQUAL
-    // =========================================================
-
-    public void andGreaterThanOrEqual(
-            String column,
-            Object value
-    ) {
-
-        if (value == null) {
-            return;
-        }
-
-        and(
-                column + " >= ?",
-                value
-        );
-    }
-
-    public void andInCast(
-            String column,
-            List<?> values,
-            String sqlType
-    ) {
-
-        if (values == null || values.isEmpty()) {
-            return;
-        }
-
-        String placeholders = String.join(
-                ", ",
-                values.stream()
-                        .map(value -> "?::" + sqlType)
-                        .toList()
-        );
-
-        conditions.add(
-                column +
-                        " IN (" +
-                        placeholders +
-                        ")"
-        );
-
-        parameters.addAll(values);
-    }
-
-    // =========================================================
-    // LESS THAN
-    // =========================================================
-
-    public void andLessThan(
-            String column,
-            Object value
-    ) {
-
-        if (value == null) {
-            return;
-        }
-
-        and(
-                column + " < ?",
-                value
-        );
-    }
-
-
-    // =========================================================
-    // LESS THAN OR EQUAL
-    // =========================================================
-
-    public void andLessThanOrEqual(
-            String column,
-            Object value
-    ) {
-
-        if (value == null) {
-            return;
-        }
-
-        and(
-                column + " <= ?",
-                value
-        );
-    }
-
 
     // =========================================================
     // WHERE
@@ -626,32 +395,11 @@ public class Query {
         return !parameters.isEmpty();
     }
 
-
     public void clear() {
 
         conditions.clear();
         parameters.clear();
     }
-
-
-    // =========================================================
-    // PLACEHOLDERS
-    // =========================================================
-
-    private String placeholders(
-            int count
-    ) {
-
-        StringJoiner joiner =
-                new StringJoiner(", ");
-
-        for (int i = 0; i < count; i++) {
-            joiner.add("?");
-        }
-
-        return joiner.toString();
-    }
-
 
     // =========================================================
     // JDBC - STRING
