@@ -1,10 +1,11 @@
-package org.janus.modules.authentication.repository;
+package org.janus.modules.authorization.repository;
 
 import io.quarkus.test.junit.QuarkusTest;
 import org.janus.help.BaseTest;
 import org.janus.modules.authorization.domain.entity.RoleEntity;
 import org.janus.modules.authorization.domain.entity.UserRoleEntity;
 import org.janus.modules.identity.domain.entity.UserEntity;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
@@ -25,7 +26,7 @@ public class UserRoleRepositoryJdbcTest extends BaseTest {
         @Test
         void shouldInsertUserRoleWithGeneratedIdWhenIdIsNull() {
             UserEntity user = initUser();
-            RoleEntity role = initRole("ROLE_INSERT_1", "insert-1");
+            RoleEntity role = initRole();
 
             UserRoleEntity userRole = new UserRoleEntity();
             userRole.setUserId(user.getId());
@@ -48,7 +49,7 @@ public class UserRoleRepositoryJdbcTest extends BaseTest {
         @Test
         void shouldInsertUserRoleWithProvidedId() {
             UserEntity user = initUser();
-            RoleEntity role = initRole("ROLE_INSERT_2", "insert-2");
+            RoleEntity role = initRole();
 
             UserRoleEntity userRole = new UserRoleEntity();
             UUID customId = UUID.randomUUID();
@@ -72,7 +73,7 @@ public class UserRoleRepositoryJdbcTest extends BaseTest {
         @Test
         void shouldInsertWhenUserRoleDoesNotExist() {
             UserEntity user = initUser();
-            RoleEntity role = initRole("ROLE_SAVE_NEW", "save-new");
+            RoleEntity role = initRole();
 
             UserRoleEntity userRole = new UserRoleEntity();
             userRole.setUserId(user.getId());
@@ -87,7 +88,7 @@ public class UserRoleRepositoryJdbcTest extends BaseTest {
         @Test
         void shouldUpdateWhenUserRoleAlreadyExists() {
             UserEntity user = initUser();
-            RoleEntity role = initRole("ROLE_UPDATE", "update");
+            RoleEntity role = initRole();
 
 
             UserRoleEntity userRole = initUserRole(user.getId(), role.getId(), null);
@@ -115,7 +116,7 @@ public class UserRoleRepositoryJdbcTest extends BaseTest {
         @Test
         void shouldThrowExceptionWhenOptimisticLockFails() {
             UserEntity user = initUser();
-            RoleEntity role = initRole("ROLE_OPT_LOCK", "opt-lock");
+            RoleEntity role = initRole();
 
             UserRoleEntity userRole = initUserRole(user.getId(), role.getId(), null);
 
@@ -129,11 +130,10 @@ public class UserRoleRepositoryJdbcTest extends BaseTest {
 
     @Nested
     class ExistsByUserIdAndRoleId {
-
         @Test
         void shouldReturnTrueWhenLinkExists() {
             UserEntity user = initUser();
-            RoleEntity role = initRole("ROLE_ADMIN", "admin");
+            RoleEntity role = initRole();
             initUserRole(user.getId(), role.getId(), null);
 
             boolean exists = userRoleRepository.existsByUserIdAndRoleId(user.getId(), role.getId());
@@ -144,7 +144,7 @@ public class UserRoleRepositoryJdbcTest extends BaseTest {
         @Test
         void shouldReturnFalseWhenLinkDoesNotExist() {
             UserEntity user = initUser();
-            RoleEntity role = initRole("ROLE_USER", "user");
+            RoleEntity role = initRole();
 
             boolean exists = userRoleRepository.existsByUserIdAndRoleId(user.getId(), role.getId());
 
@@ -158,7 +158,7 @@ public class UserRoleRepositoryJdbcTest extends BaseTest {
         @Test
         void shouldReturnEntityWhenFound() {
             UserEntity user = initUser();
-            RoleEntity role = initRole("ROLE_MANAGER", "manager");
+            RoleEntity role = initRole();
             UserRoleEntity created = initUserRole(user.getId(), role.getId(), null);
 
             Optional<UserRoleEntity> found = userRoleRepository.findByUserIdAndRoleId(user.getId(), role.getId());
@@ -183,8 +183,8 @@ public class UserRoleRepositoryJdbcTest extends BaseTest {
         @Test
         void shouldReturnListOfRoleIdsForGivenUser() {
             UserEntity user = initUser();
-            RoleEntity role1 = initRole("ROLE_A", "role-a");
-            RoleEntity role2 = initRole("ROLE_B", "role-b");
+            RoleEntity role1 = initRole();
+            RoleEntity role2 = initRole();
 
             initUserRole(user.getId(), role1.getId(), null);
             initUserRole(user.getId(), role2.getId(), null);
@@ -211,7 +211,7 @@ public class UserRoleRepositoryJdbcTest extends BaseTest {
         @Test
         void shouldDeleteSpecificUserRole() {
             UserEntity user = initUser();
-            RoleEntity role = initRole("ROLE_TO_DELETE", "to-delete");
+            RoleEntity role = initRole();
             initUserRole(user.getId(), role.getId(), null);
 
             int deletedRows = userRoleRepository.deleteByUserIdAndRoleId(user.getId(), role.getId());
@@ -223,8 +223,8 @@ public class UserRoleRepositoryJdbcTest extends BaseTest {
         @Test
         void shouldDeleteAllRolesForSpecificUser() {
             UserEntity user = initUser();
-            RoleEntity role1 = initRole("ROLE_X", "role-x");
-            RoleEntity role2 = initRole("ROLE_Y", "role-y");
+            RoleEntity role1 = initRole();
+            RoleEntity role2 = initRole();
 
             initUserRole(user.getId(), role1.getId(), null);
             initUserRole(user.getId(), role2.getId(), null);
@@ -242,7 +242,7 @@ public class UserRoleRepositoryJdbcTest extends BaseTest {
         @Test
         void shouldReturnTrueWhenExpiresAtIsNull() {
             UserEntity user = initUser();
-            RoleEntity role = initRole("ROLE_PERMANENT", "permanent");
+            RoleEntity role = initRole();
             initUserRole(user.getId(), role.getId(), null);
 
             boolean isActive = userRoleRepository.existsActiveByUserIdAndRoleId(user.getId(), role.getId());
@@ -253,7 +253,7 @@ public class UserRoleRepositoryJdbcTest extends BaseTest {
         @Test
         void shouldReturnTrueWhenExpiresAtIsInTheFuture() {
             UserEntity user = initUser();
-            RoleEntity role = initRole("ROLE_FUTURE", "future");
+            RoleEntity role = initRole();
             initUserRole(user.getId(), role.getId(), OffsetDateTime.now().plusDays(5));
 
             boolean isActive = userRoleRepository.existsActiveByUserIdAndRoleId(user.getId(), role.getId());
@@ -264,7 +264,7 @@ public class UserRoleRepositoryJdbcTest extends BaseTest {
         @Test
         void shouldReturnFalseWhenExpiresAtIsInThePast() {
             UserEntity user = initUser();
-            RoleEntity role = initRole("ROLE_EXPIRED", "expired");
+            RoleEntity role = initRole();
             initUserRole(user.getId(), role.getId(), OffsetDateTime.now().minusDays(1));
 
             boolean isActive = userRoleRepository.existsActiveByUserIdAndRoleId(user.getId(), role.getId());
