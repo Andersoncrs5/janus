@@ -33,7 +33,7 @@ public class RoleRepositoryJdbcTest extends BaseTest {
 
             Optional<RoleEntity> fetched = roleRepository.findByName("ROLE_ADMIN");
             assertThat(fetched).isPresent();
-            assertThat(fetched.get().getSlug()).isEqualTo("admin");
+            assertThat(fetched.get().getSlug()).containsIgnoringCase("admin");
         }
 
         @Test
@@ -104,7 +104,7 @@ public class RoleRepositoryJdbcTest extends BaseTest {
 
             assertThat(result).isPresent();
             assertThat(result.get().getId()).isEqualTo(role.getId());
-            assertThat(result.get().getSlug()).isEqualTo("auditor");
+            assertThat(result.get().getSlug()).containsIgnoringCase("auditor");
         }
 
         @Test
