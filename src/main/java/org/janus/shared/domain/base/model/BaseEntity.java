@@ -17,12 +17,12 @@ import java.util.UUID;
 @AllArgsConstructor
 public class BaseEntity {
 
-    private UUID id;
-    private Long version;
-    private OffsetDateTime createdAt;
-    private OffsetDateTime updatedAt;
+    protected UUID id;
+    protected Long version;
+    protected OffsetDateTime createdAt;
+    protected OffsetDateTime updatedAt;
     @Nullable
-    private OffsetDateTime deletedAt;
+    protected OffsetDateTime deletedAt;
 
     public void markAsDeleted() {
         setDeletedAt(OffsetDateTime.now());
