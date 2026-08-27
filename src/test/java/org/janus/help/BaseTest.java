@@ -2,6 +2,8 @@ package org.janus.help;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.inject.Inject;
+import org.janus.modules.authentication.adapter.out.persistence.repository.RefreshTokenRepositoryJdbc;
+import org.janus.modules.authentication.domain.entity.RefreshTokenEntity;
 import org.janus.modules.authorization.adapter.out.persistence.repository.RoleRepositoryJdbc;
 import org.janus.modules.authorization.adapter.out.persistence.repository.UserRoleRepositoryJdbc;
 import org.janus.modules.authorization.domain.entity.RoleEntity;
@@ -19,6 +21,9 @@ import java.time.OffsetDateTime;
 import java.util.UUID;
 
 public class BaseTest {
+
+    @Inject
+    protected RefreshTokenRepositoryJdbc refreshTokenRepository;
 
     @Inject
     protected UserRepository userRepository;
@@ -44,6 +49,21 @@ public class BaseTest {
         this.inboxRepository.deleteAll();
         this.userCredentialRepository.deleteAll();
         this.userRepository.deleteAll();
+    }
+
+    protected RefreshTokenEntity createSampleRefreshToken(UUID sessionId, UUID userId, String tokenHash) {
+        RefreshTokenEntity entity = new RefreshTokenEntity();
+        entity.setSessionId(sessionId);
+        entity.setUserId(userId);
+        entity.setTokenHash(tokenHash);
+        entity.setIsUsed(false);
+        entity.setIsRevoked(false);
+        entity.setExpiresAt(OffsetDateTime.now().plusDays(1));
+        return entity;
+    }
+
+    protected RefreshTokenEntity initRefreshToken(UUID sessionId, UUID userId, String tokenHash) {
+        return refreshTokenRepository.insert(createSampleRefreshToken(sessionId, userId, tokenHash));
     }
 
     protected UserRoleEntity initUserRole(UUID userId, UUID roleId, OffsetDateTime expiresAt) {
