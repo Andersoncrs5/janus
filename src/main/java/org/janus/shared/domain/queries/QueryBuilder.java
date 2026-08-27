@@ -12,6 +12,7 @@ public abstract class QueryBuilder<T extends QueryBuilder<T>> {
     protected final List<String> conditions = new ArrayList<>();
     protected final List<Object> parameters = new ArrayList<>();
     protected final List<String> joins = new ArrayList<>();
+    protected String orderByClause = "";
 
     public QueryBuilder(String table) {
         this.table = table;
@@ -357,7 +358,29 @@ public abstract class QueryBuilder<T extends QueryBuilder<T>> {
         );
     }
 
+    // =========================================================
+    // ORDER BY
+    // =========================================================
 
+    public T orderBy(String column, String direction) {
+        if (column != null && !column.isBlank()) {
+            this.orderByClause = " ORDER BY " + column + " " + (direction != null ? direction : "ASC");
+        }
+        return (T) this;
+    }
+
+    public T orderByDesc(String column) {
+        return orderBy(column, "DESC");
+    }
+
+    public T orderByAsc(String column) {
+        return orderBy(column, "ASC");
+    }
+
+    // Atualize o helper para concatenar o ORDER BY ao SQL
+    protected String buildOrderByClause() {
+        return orderByClause;
+    }
 
 
 }

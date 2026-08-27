@@ -130,6 +130,19 @@ public class Query {
                 throw new IllegalStateException("Error executing UPDATE for table: " + table, e);
             }
         }
+
+        public int executeCount(DataSource dataSource) {
+            try (Connection connection = dataSource.getConnection();
+                 PreparedStatement statement = connection.prepareStatement(buildSql())) {
+
+                for (int i = 0; i < parameters.size(); i++) {
+                    statement.setObject(i + 1, parameters.get(i));
+                }
+                return statement.executeUpdate();
+            } catch (SQLException e) {
+                throw new IllegalStateException("Error executing UPDATE for table: " + table, e);
+            }
+        }
     }
 
     public static class Delete {
@@ -172,6 +185,7 @@ public class Query {
     @Getter
     public static class Select extends QueryBuilder<Select> {
         private Integer limit;
+        private String orderByClause = "";
 
         public Select(String table) {
             super(table);
@@ -193,8 +207,8 @@ public class Query {
         public String buildSql() {
             String limitClause = limit != null ? " LIMIT " + limit : "";
 
-            return "SELECT * FROM %s %s%s%s"
-                    .formatted(table, buildJoinsClause(), buildWhereClause(), limitClause)
+            return "SELECT * FROM %s %s%s%s%s"
+                    .formatted(table, buildJoinsClause(), buildWhereClause(), buildOrderByClause(), limitClause)
                     .trim();
         }
 
