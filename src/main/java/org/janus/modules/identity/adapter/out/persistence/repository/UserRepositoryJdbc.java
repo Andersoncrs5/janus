@@ -3,11 +3,13 @@ package org.janus.modules.identity.adapter.out.persistence.repository;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.janus.modules.identity.domain.entity.UserEntity;
 import org.janus.modules.identity.ports.out.UserRepository;
+import org.janus.shared.domain.queries.Query;
 import org.janus.shared.infrastructure.persistence.jdbc.GenericJdbcRepository;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -51,41 +53,25 @@ public class UserRepositoryJdbc
             entity.setId(UUID.randomUUID());
         }
 
-        String sql = """
-                INSERT INTO %s (
-                    id, email, username, full_name, is_active,
-                    is_email_verified, failed_login_attempts, locked_until,
-                    last_login_at, version, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-                """.formatted(getTableName());
-
-        try (
-                var connection = dataSource.getConnection();
-                var statement = connection.prepareStatement(sql)
-        ) {
-            int i = 1;
-
-            statement.setObject(i++, entity.getId());
-            statement.setString(i++, entity.getEmail());
-            statement.setString(i++, entity.getUsername());
-            statement.setString(i++, entity.getFullName());
-            statement.setBoolean(i++, Boolean.TRUE.equals(entity.getIsActive()));
-            statement.setBoolean(i++, Boolean.TRUE.equals(entity.getIsEmailVerified()));
-            statement.setInt(i++, entity.getFailedLoginAttempts() != null ? entity.getFailedLoginAttempts() : 0);
-            statement.setObject(i++, entity.getLockedUntil());
-            statement.setObject(i++, entity.getLastLoginAt());
-
-            statement.executeUpdate();
-
-            entity.setVersion(0L);
-            return entity;
-
-        } catch (SQLException e) {
-            throw new IllegalStateException(
-                    "Error inserting User entity with ID: " + entity.getId(),
-                    e
-            );
-        }
+        return new Query.Insert(getTableName())
+                .value("id", entity.getId())
+                .value("email", entity.getEmail())
+                .value("username", entity.getUsername())
+                .value("full_name", entity.getFullName())
+                .value("is_active", Boolean.TRUE.equals(entity.getIsActive()))
+                .value("is_email_verified", Boolean.TRUE.equals(entity.getIsEmailVerified()))
+                .value("failed_login_attempts", entity.getFailedLoginAttempts() != null ? entity.getFailedLoginAttempts() : 0)
+                .value("locked_until", entity.getLockedUntil())
+                .value("last_login_at", entity.getLastLoginAt())
+                .value("version", 0L)
+                .value("created_at", OffsetDateTime.now())
+                .value("updated_at", OffsetDateTime.now())
+                .executeAndMap(dataSource, List.of("version", "created_at", "updated_at"), rs -> {
+                    entity.setVersion(rs.getLong("version"));
+                    entity.setCreatedAt(rs.getObject("created_at", OffsetDateTime.class));
+                    entity.setUpdatedAt(rs.getObject("updated_at", OffsetDateTime.class));
+                    return entity;
+                });
     }
 
     @Override
@@ -101,147 +87,53 @@ public class UserRepositoryJdbc
         return entity;
     }
 
+    @Override
     public Optional<UserEntity> findByEmail(String email) {
-        String sql = """
-                SELECT *
-                FROM %s
-                WHERE LOWER(email) = LOWER(?)
-                  AND deleted_at IS NULL
-                LIMIT 1
-                """.formatted(getTableName());
-
-        try (
-                var connection = dataSource.getConnection();
-                var statement = connection.prepareStatement(sql)
-        ) {
-            statement.setString(1, email);
-
-            try (var rs = statement.executeQuery()) {
-                if (!rs.next()) {
-                    return Optional.empty();
-                }
-                return Optional.of(mapRow(rs));
-            }
-        } catch (SQLException e) {
-            throw new IllegalStateException("Error finding User by email: " + email, e);
-        }
+        return new Query.Select(getTableName())
+                .whereIgnoreCase("email", email)
+                .andSoftDelete()
+                .findFirst(dataSource, this::mapRow);
     }
 
+    @Override
     public Optional<UserEntity> findByUsername(String username) {
-        String sql = """
-                SELECT *
-                FROM %s
-                WHERE LOWER(username) = LOWER(?)
-                  AND deleted_at IS NULL
-                LIMIT 1
-                """.formatted(getTableName());
-
-        try (
-                var connection = dataSource.getConnection();
-                var statement = connection.prepareStatement(sql)
-        ) {
-            statement.setString(1, username);
-
-            try (var rs = statement.executeQuery()) {
-                if (!rs.next()) {
-                    return Optional.empty();
-                }
-                return Optional.of(mapRow(rs));
-            }
-        } catch (SQLException e) {
-            throw new IllegalStateException("Error finding User by username: " + username, e);
-        }
+        return new Query.Select(getTableName())
+                .whereIgnoreCase("username", username)
+                .andSoftDelete()
+                .findFirst(dataSource, this::mapRow);
     }
 
+    @Override
     public boolean existsByEmail(String email) {
-        String sql = """
-                SELECT EXISTS (
-                    SELECT 1
-                    FROM %s
-                    WHERE LOWER(email) = LOWER(?)
-                      AND deleted_at IS NULL
-                )
-                """.formatted(getTableName());
-
-        try (
-                var connection = dataSource.getConnection();
-                var statement = connection.prepareStatement(sql)
-        ) {
-            statement.setString(1, email);
-
-            try (var rs = statement.executeQuery()) {
-                return rs.next() && rs.getBoolean(1);
-            }
-        } catch (SQLException e) {
-            throw new IllegalStateException("Error checking User email existence: " + email, e);
-        }
+        return new Query.Exists(getTableName())
+                .whereIgnoreCase("email", email)
+                .andSoftDelete()
+                .execute(dataSource);
     }
 
+    @Override
     public boolean existsByUsername(String username) {
-        String sql = """
-                SELECT EXISTS (
-                    SELECT 1
-                    FROM %s
-                    WHERE LOWER(username) = LOWER(?)
-                      AND deleted_at IS NULL
-                )
-                """.formatted(getTableName());
-
-        try (
-                var connection = dataSource.getConnection();
-                var statement = connection.prepareStatement(sql)
-        ) {
-            statement.setString(1, username);
-
-            try (var rs = statement.executeQuery()) {
-                return rs.next() && rs.getBoolean(1);
-            }
-        } catch (SQLException e) {
-            throw new IllegalStateException("Error checking User username existence: " + username, e);
-        }
+        return new Query.Exists(getTableName())
+                .whereIgnoreCase("username", username)
+                .andSoftDelete()
+                .execute(dataSource);
     }
 
     public boolean updateOptimistic(UserEntity entity) {
-        String sql = """
-                UPDATE %s
-                SET
-                    email = ?,
-                    username = ?,
-                    full_name = ?,
-                    is_active = ?,
-                    is_email_verified = ?,
-                    failed_login_attempts = ?,
-                    locked_until = ?,
-                    last_login_at = ?,
-                    version = version + 1,
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE id = ?
-                  AND version = ?
-                  AND deleted_at IS NULL
-                """.formatted(getTableName());
-
-        try (
-                var connection = dataSource.getConnection();
-                var statement = connection.prepareStatement(sql)
-        ) {
-            int i = 1;
-
-            statement.setString(i++, entity.getEmail());
-            statement.setString(i++, entity.getUsername());
-            statement.setString(i++, entity.getFullName());
-            statement.setBoolean(i++, Boolean.TRUE.equals(entity.getIsActive()));
-            statement.setBoolean(i++, Boolean.TRUE.equals(entity.getIsEmailVerified()));
-            statement.setInt(i++, entity.getFailedLoginAttempts() != null ? entity.getFailedLoginAttempts() : 0);
-            statement.setObject(i++, entity.getLockedUntil());
-            statement.setObject(i++, entity.getLastLoginAt());
-
-            statement.setObject(i++, entity.getId());
-            statement.setLong(i, entity.getVersion() != null ? entity.getVersion() : 0L);
-
-            return statement.executeUpdate() > 0;
-
-        } catch (SQLException e) {
-            throw new IllegalStateException("Error updating User with ID: " + entity.getId(), e);
-        }
+        return new Query.Update(getTableName())
+                .set("email", entity.getEmail())
+                .set("username", entity.getUsername())
+                .set("full_name", entity.getFullName())
+                .set("is_active", Boolean.TRUE.equals(entity.getIsActive()))
+                .set("is_email_verified", Boolean.TRUE.equals(entity.getIsEmailVerified()))
+                .set("failed_login_attempts", entity.getFailedLoginAttempts() != null ? entity.getFailedLoginAttempts() : 0)
+                .set("locked_until", entity.getLockedUntil())
+                .set("last_login_at", entity.getLastLoginAt())
+                .setExpression("version = version + 1")
+                .setExpression("updated_at = CURRENT_TIMESTAMP")
+                .where("id", entity.getId())
+                .and("version = ?", entity.getVersion() != null ? entity.getVersion() : 0L)
+                .andSoftDelete()
+                .execute(dataSource);
     }
 }

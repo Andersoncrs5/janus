@@ -3,12 +3,13 @@ package org.janus.modules.identity.adapter.out.persistence.repository;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.janus.modules.identity.domain.entity.UserCredentialsEntity;
 import org.janus.modules.identity.ports.out.UserCredentialRepository;
+import org.janus.shared.domain.queries.Query;
 import org.janus.shared.infrastructure.persistence.jdbc.GenericJdbcRepository;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -41,34 +42,22 @@ public class UserCredentialRepositoryJdbc
             entity.setId(UUID.randomUUID());
         }
 
-        String sql = """
-                INSERT INTO %s (
-                    id, user_id, password_hash, algorithm, version, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-                """.formatted(getTableName());
+        String algorithmValue = entity.getAlgorithm() != null ? entity.getAlgorithm() : "argon2id";
 
-        try (
-                var connection = dataSource.getConnection();
-                var statement = connection.prepareStatement(sql)
-        ) {
-            int i = 1;
-
-            statement.setObject(i++, entity.getId());
-            statement.setObject(i++, entity.getUserId());
-            statement.setString(i++, entity.getPasswordHash());
-            statement.setString(i++, entity.getAlgorithm() != null ? entity.getAlgorithm() : "argon2id");
-
-            statement.executeUpdate();
-
-            entity.setVersion(0L);
-            return entity;
-
-        } catch (SQLException e) {
-            throw new IllegalStateException(
-                    "Error inserting UserCredentials entity with ID: " + entity.getId(),
-                    e
-            );
-        }
+        return new Query.Insert(getTableName())
+                .value("id", entity.getId())
+                .value("user_id", entity.getUserId())
+                .value("password_hash", entity.getPasswordHash())
+                .value("algorithm", algorithmValue)
+                .value("version", 0L)
+                .value("created_at", OffsetDateTime.now())
+                .value("updated_at", OffsetDateTime.now())
+                .executeAndMap(dataSource, List.of("version", "created_at", "updated_at"), rs -> {
+                    entity.setVersion(rs.getLong("version"));
+                    entity.setCreatedAt(rs.getObject("created_at", OffsetDateTime.class));
+                    entity.setUpdatedAt(rs.getObject("updated_at", OffsetDateTime.class));
+                    return entity;
+                });
     }
 
     @Override
@@ -86,116 +75,41 @@ public class UserCredentialRepositoryJdbc
 
     @Override
     public Optional<UserCredentialsEntity> findByUserId(UUID userId) {
-        String sql = """
-                SELECT *
-                FROM %s
-                WHERE user_id = ?
-                  AND deleted_at IS NULL
-                LIMIT 1
-                """.formatted(getTableName());
-
-        try (
-                var connection = dataSource.getConnection();
-                var statement = connection.prepareStatement(sql)
-        ) {
-            statement.setObject(1, userId);
-
-            try (var rs = statement.executeQuery()) {
-                if (!rs.next()) {
-                    return Optional.empty();
-                }
-                return Optional.of(mapRow(rs));
-            }
-        } catch (SQLException e) {
-            throw new IllegalStateException("Error finding UserCredentials by user_id: " + userId, e);
-        }
+        return new Query.Select(getTableName())
+                .where("user_id", userId)
+                .andSoftDelete()
+                .findFirst(dataSource, this::mapRow);
     }
 
     @Override
     public boolean existsByUserId(UUID userId) {
-        String sql = """
-                SELECT EXISTS (
-                    SELECT 1
-                    FROM %s
-                    WHERE user_id = ?
-                      AND deleted_at IS NULL
-                )
-                """.formatted(getTableName());
-
-        try (
-                var connection = dataSource.getConnection();
-                var statement = connection.prepareStatement(sql)
-        ) {
-            statement.setObject(1, userId);
-
-            try (var rs = statement.executeQuery()) {
-                return rs.next() && rs.getBoolean(1);
-            }
-        } catch (SQLException e) {
-            throw new IllegalStateException("Error checking UserCredentials existence by user_id: " + userId, e);
-        }
+        return new Query.Exists(getTableName())
+                .where("user_id", userId)
+                .andSoftDelete()
+                .execute(dataSource);
     }
 
     @Override
     public boolean deleteByUserId(UUID userId) {
-        String sql = """
-                UPDATE %s
-                SET
-                    deleted_at = CURRENT_TIMESTAMP,
-                    version = version + 1
-                WHERE user_id = ?
-                  AND deleted_at IS NULL
-                """.formatted(getTableName());
-
-        try (
-                Connection connection = dataSource.getConnection();
-                PreparedStatement statement =
-                        connection.prepareStatement(sql)
-        ) {
-
-            statement.setObject(1, userId);
-
-            return statement.executeUpdate() > 0;
-
-        } catch (SQLException e) {
-            throw new IllegalStateException(
-                    "Error deleting entity by UUID: " + userId,
-                    e
-            );
-        }
+        // Mantém a consistência de soft delete com atualização de versão
+        return new Query.Update(getTableName())
+                .setExpression("deleted_at = CURRENT_TIMESTAMP")
+                .setExpression("version = version + 1")
+                .where("user_id", userId)
+                .andSoftDelete()
+                .execute(dataSource);
     }
 
     public boolean updateOptimistic(UserCredentialsEntity entity) {
-        String sql = """
-                UPDATE %s
-                SET
-                    user_id = ?,
-                    password_hash = ?,
-                    algorithm = ?,
-                    version = version + 1,
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE id = ?
-                  AND version = ?
-                  AND deleted_at IS NULL
-                """.formatted(getTableName());
-
-        try (
-                var connection = dataSource.getConnection();
-                var statement = connection.prepareStatement(sql)
-        ) {
-            int i = 1;
-
-            statement.setObject(i++, entity.getUserId());
-            statement.setString(i++, entity.getPasswordHash());
-            statement.setString(i++, entity.getAlgorithm());
-
-            statement.setObject(i++, entity.getId());
-            statement.setLong(i, entity.getVersion() != null ? entity.getVersion() : 0L);
-
-            return statement.executeUpdate() > 0;
-
-        } catch (SQLException e) {
-            throw new IllegalStateException("Error updating UserCredentials with ID: " + entity.getId(), e);
-        }
+        return new Query.Update(getTableName())
+                .set("user_id", entity.getUserId())
+                .set("password_hash", entity.getPasswordHash())
+                .set("algorithm", entity.getAlgorithm())
+                .setExpression("version = version + 1")
+                .setExpression("updated_at = CURRENT_TIMESTAMP")
+                .where("id", entity.getId())
+                .and("version = ?", entity.getVersion() != null ? entity.getVersion() : 0L)
+                .andSoftDelete()
+                .execute(dataSource);
     }
 }

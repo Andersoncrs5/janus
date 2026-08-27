@@ -9,11 +9,8 @@ import org.janus.shared.domain.page.Page;
 import org.janus.shared.domain.queries.Query;
 import org.janus.shared.infrastructure.persistence.jdbc.GenericJdbcRepository;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Types;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -84,93 +81,31 @@ public class RoleRepositoryJdbc
         return entity;
     }
 
+    @Override
     public RoleEntity insert(RoleEntity entity) {
-
         if (entity.getId() == null) {
             entity.setId(UUID.randomUUID());
         }
 
-        String sql = """
-            INSERT INTO %s (
-                id,
-                slug,
-                name,
-                description,
-                is_active,
-                is_system,
-                version,
-                created_at,
-                updated_at
-            )
-            VALUES (
-                ?,
-                ?,
-                ?,
-                ?,
-                ?,
-                ?,
-                0,
-                CURRENT_TIMESTAMP,
-                CURRENT_TIMESTAMP
-            )
-            RETURNING
-                id,
-                version,
-                created_at,
-                updated_at
-            """.formatted(getTableName());
-
-        try (
-                Connection connection = dataSource.getConnection();
-                PreparedStatement statement = connection.prepareStatement(sql)
-        ) {
-
-            int i = 1;
-
-            statement.setObject(i++, entity.getId());
-            statement.setString(i++, entity.getSlug());
-            statement.setString(i++, entity.getName());
-
-            if (entity.getDescription() != null) {
-                statement.setString(i++, entity.getDescription());
-            } else {
-                statement.setNull(i++, Types.VARCHAR);
-            }
-
-            statement.setBoolean(
-                    i++,
-                    entity.getIsActive() != null ? entity.getIsActive() : Boolean.TRUE
-            );
-
-            statement.setBoolean(
-                    i++,
-                    entity.getIsSystem() != null ? entity.getIsSystem() : Boolean.FALSE
-            );
-
-            try (ResultSet rs = statement.executeQuery()) {
-
-                if (!rs.next()) {
-                    throw new IllegalStateException(
-                            "Insert Role did not return generated values: "
-                                    + entity.getId()
-                    );
-                }
-
-                entity.setVersion(rs.getLong("version"));
-                entity.setCreatedAt(rs.getObject("created_at", OffsetDateTime.class));
-                entity.setUpdatedAt(rs.getObject("updated_at", OffsetDateTime.class));
-
-                return entity;
-            }
-
-        } catch (SQLException e) {
-            throw new IllegalStateException(
-                    "Error inserting Role entity with ID: " + entity.getId(),
-                    e
-            );
-        }
+        return new Query.Insert(getTableName())
+                .value("id", entity.getId())
+                .value("slug", entity.getSlug())
+                .value("name", entity.getName())
+                .value("description", entity.getDescription())
+                .value("is_active", entity.getIsActive() != null ? entity.getIsActive() : Boolean.TRUE)
+                .value("is_system", entity.getIsSystem() != null ? entity.getIsSystem() : Boolean.FALSE)
+                .value("version", 0L)
+                .value("created_at", OffsetDateTime.now())
+                .value("updated_at", OffsetDateTime.now())
+                .executeAndMap(dataSource, List.of("version", "created_at", "updated_at"), rs -> {
+                    entity.setVersion(rs.getLong("version"));
+                    entity.setCreatedAt(rs.getObject("created_at", OffsetDateTime.class));
+                    entity.setUpdatedAt(rs.getObject("updated_at", OffsetDateTime.class));
+                    return entity;
+                });
     }
 
+    @Override
     public RoleEntity save(RoleEntity entity) {
         if (entity.getId() == null || !existsById(entity.getId())) {
             return insert(entity);
@@ -186,105 +121,33 @@ public class RoleRepositoryJdbc
     }
 
     public boolean updateOptimistic(RoleEntity entity) {
-        String sql = """
-                UPDATE %s
-                SET
-                    slug = ?,
-                    name = ?,
-                    description = ?,
-                    is_active = ?,
-                    is_system = ?,
-                    version = version + 1,
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE id = ?
-                  AND version = ?
-                  AND deleted_at IS NULL
-                """.formatted(getTableName());
-
-        try (
-                Connection connection = dataSource.getConnection();
-                PreparedStatement statement = connection.prepareStatement(sql)
-        ) {
-            int i = 1;
-
-            statement.setString(i++, entity.getSlug());
-            statement.setString(i++, entity.getName());
-
-            if (entity.getDescription() != null) {
-                statement.setString(i++, entity.getDescription());
-            } else {
-                statement.setNull(i++, Types.VARCHAR);
-            }
-
-            statement.setBoolean(
-                    i++,
-                    entity.getIsActive() != null ? entity.getIsActive() : Boolean.TRUE
-            );
-
-            statement.setBoolean(
-                    i++,
-                    entity.getIsSystem() != null ? entity.getIsSystem() : Boolean.FALSE
-            );
-
-            statement.setObject(i++, entity.getId());
-            statement.setLong(i, entity.getVersion() != null ? entity.getVersion() : 0L);
-
-            return statement.executeUpdate() > 0;
-
-        } catch (SQLException e) {
-            throw new IllegalStateException("Error updating Role entity with ID: " + entity.getId(), e);
-        }
+        return new Query.Update(getTableName())
+                .set("slug", entity.getSlug())
+                .set("name", entity.getName())
+                .set("description", entity.getDescription())
+                .set("is_active", entity.getIsActive() != null ? entity.getIsActive() : Boolean.TRUE)
+                .set("is_system", entity.getIsSystem() != null ? entity.getIsSystem() : Boolean.FALSE)
+                .setExpression("version = version + 1")
+                .setExpression("updated_at = CURRENT_TIMESTAMP")
+                .where("id", entity.getId())
+                .and("version = ?", entity.getVersion() != null ? entity.getVersion() : 0L)
+                .andSoftDelete()
+                .execute(dataSource);
     }
 
     @Override
     public Optional<RoleEntity> findByName(String name) {
-        String sql = """
-                SELECT *
-                FROM %s
-                WHERE name = ?
-                  AND deleted_at IS NULL
-                LIMIT 1
-                """.formatted(getTableName());
-
-        try (
-                Connection connection = dataSource.getConnection();
-                PreparedStatement statement = connection.prepareStatement(sql)
-        ) {
-            statement.setString(1, name);
-
-            try (ResultSet rs = statement.executeQuery()) {
-                if (!rs.next()) {
-                    return Optional.empty();
-                }
-                return Optional.of(mapRow(rs));
-            }
-        } catch (SQLException e) {
-            throw new IllegalStateException("Error finding Role entity by name: " + name, e);
-        }
+        return new Query.Select(getTableName())
+                .where("name", name)
+                .andSoftDelete()
+                .findFirst(dataSource, this::mapRow);
     }
 
     @Override
     public boolean existsByName(String name) {
-        String sql = """
-                SELECT EXISTS (
-                    SELECT 1
-                    FROM %s
-                    WHERE name = ?
-                      AND deleted_at IS NULL
-                )
-                """.formatted(getTableName());
-
-        try (
-                Connection connection = dataSource.getConnection();
-                PreparedStatement statement = connection.prepareStatement(sql)
-        ) {
-            statement.setString(1, name);
-
-            try (ResultSet rs = statement.executeQuery()) {
-                return rs.next() && rs.getBoolean(1);
-            }
-        } catch (SQLException e) {
-            throw new IllegalStateException("Error checking Role existence by name: " + name, e);
-        }
+        return new Query.Exists(getTableName())
+                .where("name", name)
+                .andSoftDelete()
+                .execute(dataSource);
     }
 }
