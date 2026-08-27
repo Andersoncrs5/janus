@@ -23,6 +23,10 @@ public class Result<T> {
         return value;
     }
 
+    public int getStatus() {
+        return statusCode;
+    }
+
     public boolean isSuccess() {
         return errors.isEmpty();
     }
@@ -70,6 +74,10 @@ public class Result<T> {
 
     public static <T> Result<T> notFound(String error) {
         return new Result<>(null, List.of(error), 404);
+    }
+
+    public static <T> Result<T> forb(String error) {
+        return new Result<>(null, List.of(error), 403);
     }
 
     public static <T> Result<T> failure(List<String> errors, int status) {
