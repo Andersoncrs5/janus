@@ -3,9 +3,22 @@ mp:
     verify:
       publickey:
         location: publicKey.pem
-      issuer: https://controllibrary.org
+      issuer: https://janus.api
+
+smallrye:
+  jwt:
+    sign:
+      key:
+        location: privateKey.pem
 
 quarkus:
+  security:
+    jwt:
+      group: "USER"
+      exp:
+        token: 24
+        refresh: 168
+
   smallrye-jwt:
     sign:
       key:
