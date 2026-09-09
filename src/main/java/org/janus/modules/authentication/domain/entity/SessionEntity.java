@@ -23,4 +23,35 @@ public class SessionEntity extends BaseEntity {
     private Boolean isRevoked = false;
     private OffsetDateTime expiresAt;
 
+    public boolean isExpired() {
+        if (this.expiresAt == null) {
+            return false;
+        }
+        return OffsetDateTime.now().isAfter(this.expiresAt);
+    }
+
+    public void addTime(long minutes) {
+        this.expiresAt.plusMinutes(minutes);
+    }
+
+    public boolean isActive() {
+        return Boolean.FALSE.equals(this.isRevoked) && !isExpired();
+    }
+
+    public void revoke() {
+        this.isRevoked = true;
+    }
+
+    public void extendDuration(long durationInMinutes) {
+        if (this.expiresAt == null) {
+            this.expiresAt = OffsetDateTime.now().plusMinutes(durationInMinutes);
+        } else {
+            this.expiresAt = this.expiresAt.plusMinutes(durationInMinutes);
+        }
+    }
+
+    public boolean isSameUser(UUID userId) {
+        return this.userId != null && this.userId.equals(userId);
+    }
+
 }
