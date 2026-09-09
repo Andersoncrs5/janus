@@ -2,8 +2,10 @@ package org.janus.modules.authentication.repository;
 
 import io.quarkus.test.junit.QuarkusTest;
 import org.janus.help.BaseTest;
+import org.janus.modules.authentication.application.dto.session.filter.SessionFilterDTO;
 import org.janus.modules.authentication.domain.entity.SessionEntity;
 import org.janus.modules.identity.domain.entity.UserEntity;
+import org.janus.shared.domain.page.Page;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
@@ -17,6 +19,22 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @QuarkusTest
 public class SessionRepositoryJdbcTest extends BaseTest {
+
+    @Nested
+    class FindAll {
+        @Test
+        void shouldReturnEmptyPageWhenNoSessionMatchesFilter() {
+            SessionFilterDTO filter = new SessionFilterDTO();
+            filter.setUserId(UUID.randomUUID());
+            filter.setPage(0);
+            filter.setSize(10);
+
+            Page<SessionEntity> page = sessionRepository.findAll(filter);
+
+            assertThat(page.getContent()).isEmpty();
+            assertThat(page.getTotalElements()).isZero();
+        }
+    }
 
     @Nested
     class Insert {

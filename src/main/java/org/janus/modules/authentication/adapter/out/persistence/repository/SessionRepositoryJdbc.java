@@ -1,8 +1,11 @@
 package org.janus.modules.authentication.adapter.out.persistence.repository;
 
 import jakarta.enterprise.context.ApplicationScoped;
+import org.janus.modules.authentication.application.dto.session.filter.SessionFilterDTO;
+import org.janus.modules.authentication.application.dto.session.filter.SessionOrder;
 import org.janus.modules.authentication.domain.entity.SessionEntity;
 import org.janus.modules.authentication.port.out.SessionRepository;
+import org.janus.shared.domain.page.Page;
 import org.janus.shared.domain.queries.Query;
 import org.janus.shared.infrastructure.persistence.jdbc.GenericJdbcRepository;
 
@@ -10,7 +13,9 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @ApplicationScoped
 public class SessionRepositoryJdbc
@@ -20,6 +25,64 @@ public class SessionRepositoryJdbc
     @Override
     protected String getTableName() {
         return "sessions";
+    }
+
+    @Override
+    public Page<SessionEntity> findAll(SessionFilterDTO filter) {
+        Query query = buildBaseFilter(filter);
+
+        if (filter.getUserId() != null) {
+            query.andEqual("user_id", filter.getUserId());
+        }
+
+        if (filter.getIpAddress() != null && !filter.getIpAddress().isBlank()) {
+            query.andILike("ip_address", filter.getIpAddress());
+        }
+
+        if (filter.getUserAgent() != null && !filter.getUserAgent().isBlank()) {
+            query.andILike("user_agent", filter.getUserAgent());
+        }
+
+        if (filter.getIsRevoked() != null) {
+            query.andEqual("is_revoked", filter.getIsRevoked());
+        }
+
+        if (Boolean.FALSE.equals(filter.getIncludeExpired())) {
+            query.and("expires_at > CURRENT_TIMESTAMP");
+        }
+
+        if (filter.getExpiresAtFrom() != null) {
+            query.and("expires_at >= ?", filter.getExpiresAtFrom());
+        }
+
+        if (filter.getExpiresAtTo() != null) {
+            query.and("expires_at <= ?", filter.getExpiresAtTo());
+        }
+
+        List<SessionOrder> orders = (filter.getOrders() != null && !filter.getOrders().isEmpty())
+                ? filter.getOrders()
+                : List.of(SessionOrder.CREATED_AT);
+
+        List<String> orderFields = orders.stream()
+                .map(SessionOrder::getField)
+                .collect(Collectors.toList());
+
+        return findAll(
+                query,
+                orderFields,
+                filter
+        );
+    }
+
+    @Override
+    public Optional<SessionEntity> findBySessionIdAndUserId(UUID sessionId, UUID userId) {
+        return new Query.Select(getTableName())
+                .where("session_id", sessionId)
+                .where("user_id", userId)
+                .andSoftDelete()
+                .orderByDesc("created_at")
+                .limit(1)
+                .findFirst(dataSource, this::mapRow);
     }
 
     @Override
@@ -129,5 +192,6 @@ public class SessionRepositoryJdbc
                 .andSoftDelete()
                 .executeCount(dataSource);
     }
+
 
 }
