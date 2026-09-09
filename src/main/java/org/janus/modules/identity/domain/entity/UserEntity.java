@@ -9,7 +9,6 @@ import lombok.experimental.SuperBuilder;
 import org.janus.shared.domain.base.model.BaseEntity;
 
 import java.time.OffsetDateTime;
-import java.util.UUID;
 
 @Getter
 @Setter
@@ -17,7 +16,7 @@ import java.util.UUID;
 @AllArgsConstructor
 @NoArgsConstructor
 public class UserEntity extends BaseEntity {
-    public static final String TABLE_NAME = "public.users";
+    public static final String TABLE_NAME = "users";
 
     private String email;
     private String username;
@@ -46,10 +45,6 @@ public class UserEntity extends BaseEntity {
     public void resetFailedLoginAttempts() {
         this.failedLoginAttempts = 0;
         this.lockedUntil = null;
-    }
-
-    public void markAsDeleted() {
-        setDeletedAt(OffsetDateTime.now());
     }
 
 }
