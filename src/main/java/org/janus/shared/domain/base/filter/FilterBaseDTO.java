@@ -1,16 +1,15 @@
 package org.janus.shared.domain.base.filter;
 
 import jakarta.ws.rs.QueryParam;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
+import lombok.experimental.SuperBuilder;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Getter
 @Setter
+@SuperBuilder
 @NoArgsConstructor
 @AllArgsConstructor
 public class FilterBaseDTO {
@@ -35,7 +34,7 @@ public class FilterBaseDTO {
     @QueryParam("updatedAtMax")
     private OffsetDateTime updatedAtMax;
 
-    @QueryParam("deletedAtMax")
+    @QueryParam("deletedAtMin")
     private OffsetDateTime deletedAtMin;
 
     @QueryParam("deletedAtMax")
@@ -45,9 +44,11 @@ public class FilterBaseDTO {
     private Boolean seeDeleted;
 
     @QueryParam("page")
+    @Builder.Default
     private int page = 0;
 
     @QueryParam("size")
+    @Builder.Default
     private int size = 20;
 
     public int getOffset() {
@@ -55,4 +56,3 @@ public class FilterBaseDTO {
     }
 
 }
-
