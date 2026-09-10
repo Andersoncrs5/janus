@@ -42,4 +42,18 @@ public interface GenericRepository<T extends BaseEntity, ID> {
     Optional<T> findByIdForUpdate(ID id);
 
     boolean existsById(ID id);
+
+    long count();
+
+    List<T> insertAll(List<T> entities);
+
+    List<T> saveAll(List<T> entities);
+
+    long countWithDeleted();
+
+    boolean existsAllByIds(List<ID> ids);
+
+    List<T> findAllDeleted();
+
+    Optional<T> findByIdWithDeleted(ID id);
 }

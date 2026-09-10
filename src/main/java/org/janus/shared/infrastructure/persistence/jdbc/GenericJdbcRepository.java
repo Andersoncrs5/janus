@@ -3,6 +3,7 @@ package org.janus.shared.infrastructure.persistence.jdbc;
 import jakarta.inject.Inject;
 import org.janus.shared.domain.base.filter.FilterBaseDTO;
 import org.janus.shared.domain.base.model.BaseEntity;
+import org.janus.shared.domain.base.repository.GenericRepository;
 import org.janus.shared.domain.page.Page;
 import org.janus.shared.domain.queries.Query;
 import org.postgresql.util.PGobject;
@@ -12,7 +13,7 @@ import java.sql.*;
 import java.time.OffsetDateTime;
 import java.util.*;
 
-public abstract class GenericJdbcRepository<T extends BaseEntity> {
+public abstract class GenericJdbcRepository<T extends BaseEntity> implements GenericRepository<T, UUID> {
 
     @Inject
     protected DataSource dataSource;
@@ -54,25 +55,8 @@ public abstract class GenericJdbcRepository<T extends BaseEntity> {
     }
 
     // =========================================================
-    // REQUIRED
+    // REQUIRED & MAPPER
     // =========================================================
-
-    public List<T> findAll() {
-        String sql = String.format("SELECT * FROM %s WHERE deleted_at IS NULL", getTableName());
-        List<T> result = new ArrayList<>();
-
-        try (var conn = dataSource.getConnection();
-             var stmt = conn.prepareStatement(sql);
-             var rs = stmt.executeQuery()) {
-
-            while (rs.next()) {
-                result.add(mapRow(rs));
-            }
-        } catch (SQLException e) {
-            throw new RuntimeException("Erro ao listar registros de " + getTableName(), e);
-        }
-        return result;
-    }
 
     /**
      * Nome da tabela usada pelo repository.
@@ -83,7 +67,6 @@ public abstract class GenericJdbcRepository<T extends BaseEntity> {
      * Converte uma linha do ResultSet para a entidade.
      */
     protected abstract T mapRow(ResultSet rs) throws SQLException;
-
 
     // =========================================================
     // BASE MAPPING
@@ -130,12 +113,6 @@ public abstract class GenericJdbcRepository<T extends BaseEntity> {
         );
     }
 
-
-    /**
-     * Permite que repositories específicos definam como
-     * obter o UUID caso o tipo não seja diretamente suportado
-     * por ResultSet#getObject(...).
-     */
     @SuppressWarnings("unchecked")
     protected UUID getId(
             ResultSet rs
@@ -144,12 +121,51 @@ public abstract class GenericJdbcRepository<T extends BaseEntity> {
         return (UUID) rs.getObject("id");
     }
 
-
     // =========================================================
-    // FIND BY UUID
+    // READ
     // =========================================================
 
+    @Override
+    public List<T> findAll() {
+        String sql = String.format("SELECT * FROM %s WHERE deleted_at IS NULL", getTableName());
+        List<T> result = new ArrayList<>();
+
+        try (var conn = dataSource.getConnection();
+             var stmt = conn.prepareStatement(sql);
+             var rs = stmt.executeQuery()) {
+
+            while (rs.next()) {
+                result.add(mapRow(rs));
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Erro ao listar registros de " + getTableName(), e);
+        }
+        return result;
+    }
+
+    @Override
+    public List<T> findAllDeleted() {
+        String sql = String.format("SELECT * FROM %s WHERE deleted_at IS NOT NULL", getTableName());
+        List<T> result = new ArrayList<>();
+
+        try (Connection connection = dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql);
+             ResultSet rs = statement.executeQuery()) {
+
+            while (rs.next()) {
+                result.add(mapRow(rs));
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException("Error finding deleted entities from: " + getTableName(), e);
+        }
+
+        return result;
+    }
+
+    @Override
     public Optional<T> findById(UUID id) {
+        if (id == null)
+            return Optional.empty();
 
         String sql = """
                 SELECT *
@@ -161,8 +177,7 @@ public abstract class GenericJdbcRepository<T extends BaseEntity> {
 
         try (
                 Connection connection = dataSource.getConnection();
-                PreparedStatement statement =
-                        connection.prepareStatement(sql)
+                PreparedStatement statement = connection.prepareStatement(sql)
         ) {
 
             statement.setObject(1, id);
@@ -184,10 +199,46 @@ public abstract class GenericJdbcRepository<T extends BaseEntity> {
         }
     }
 
-    public Optional<T> findByIdForUpdate(UUID id) {
-        if (id == null) {
+    @Override
+    public Optional<T> findByIdWithDeleted(UUID id) {
+        if (id == null)
             return Optional.empty();
+
+        String sql = """
+                SELECT *
+                FROM %s
+                WHERE id = ?
+                LIMIT 1
+                """.formatted(getTableName());
+
+        try (
+                Connection connection = dataSource.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql)
+        ) {
+
+            statement.setObject(1, id);
+
+            try (ResultSet rs = statement.executeQuery()) {
+
+                if (!rs.next()) {
+                    return Optional.empty();
+                }
+
+                return Optional.of(mapRow(rs));
+            }
+
+        } catch (SQLException e) {
+            throw new IllegalStateException(
+                    "Error finding entity (including deleted) by UUID: " + id,
+                    e
+            );
         }
+    }
+
+    @Override
+    public Optional<T> findByIdForUpdate(UUID id) {
+        if (id == null)
+            return Optional.empty();
 
         String sql = """
                 SELECT *
@@ -221,11 +272,9 @@ public abstract class GenericJdbcRepository<T extends BaseEntity> {
         }
     }
 
-    // =========================================================
-    // EXISTS BY UUID
-    // =========================================================
-
+    @Override
     public boolean existsById(UUID id) {
+        if (id == null) return false;
 
         String sql = """
                 SELECT EXISTS (
@@ -238,8 +287,7 @@ public abstract class GenericJdbcRepository<T extends BaseEntity> {
 
         try (
                 Connection connection = dataSource.getConnection();
-                PreparedStatement statement =
-                        connection.prepareStatement(sql)
+                PreparedStatement statement = connection.prepareStatement(sql)
         ) {
 
             statement.setObject(1, id);
@@ -256,16 +304,134 @@ public abstract class GenericJdbcRepository<T extends BaseEntity> {
         }
     }
 
+    @Override
+    public boolean existsAllByIds(List<UUID> ids) {
+        if (ids == null || ids.isEmpty()) return true;
+
+        Set<UUID> uniqueIds = new HashSet<>(ids);
+        String placeholders = placeholders(uniqueIds.size());
+
+        String sql = """
+                SELECT COUNT(DISTINCT id)
+                FROM %s
+                WHERE id IN (%s)
+                  AND deleted_at IS NULL
+                """.formatted(getTableName(), placeholders);
+
+        try (
+                Connection connection = dataSource.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql)
+        ) {
+
+            int i = 1;
+            for (UUID id : uniqueIds) {
+                statement.setObject(i++, id);
+            }
+
+            try (ResultSet rs = statement.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getLong(1) == uniqueIds.size();
+                }
+                return false;
+            }
+
+        } catch (SQLException e) {
+            throw new IllegalStateException(
+                    "Error checking if all entities exist by UUIDs",
+                    e
+            );
+        }
+    }
+
+    @Override
+    public long count() {
+        String sql = String.format("SELECT COUNT(*) FROM %s WHERE deleted_at IS NULL", getTableName());
+
+        try (
+                Connection connection = dataSource.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql);
+                ResultSet rs = statement.executeQuery()
+        ) {
+
+            if (rs.next()) {
+                return rs.getLong(1);
+            }
+            return 0;
+
+        } catch (SQLException e) {
+            throw new IllegalStateException("Error counting active entities from: " + getTableName(), e);
+        }
+    }
+
+    @Override
+    public long countWithDeleted() {
+        String sql = String.format("SELECT COUNT(*) FROM %s", getTableName());
+
+        try (
+                Connection connection = dataSource.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql);
+                ResultSet rs = statement.executeQuery()
+        ) {
+
+            if (rs.next()) {
+                return rs.getLong(1);
+            }
+            return 0;
+
+        } catch (SQLException e) {
+            throw new IllegalStateException("Error counting all entities (including deleted) from: " + getTableName(), e);
+        }
+    }
+
+    // =========================================================
+    // INSERT & SAVE
+    // =========================================================
+
+    @Override
+    public T insert(T entity) {
+        throw new UnsupportedOperationException(
+                "Insert must be implemented by the concrete repository: "
+                        + getClass().getSimpleName()
+        );
+    }
+
+    @Override
+    public List<T> insertAll(List<T> entities) {
+        if (entities == null || entities.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<T> result = new ArrayList<>(entities.size());
+        for (T entity : entities) {
+            result.add(insert(entity));
+        }
+        return result;
+    }
+
+    @Override
+    public T save(T entity) {
+        throw new UnsupportedOperationException(
+                "Save must be implemented by the concrete repository: "
+                        + getClass().getSimpleName()
+        );
+    }
+
+    @Override
+    public List<T> saveAll(List<T> entities) {
+        if (entities == null || entities.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<T> result = new ArrayList<>(entities.size());
+        for (T entity : entities) {
+            result.add(save(entity));
+        }
+        return result;
+    }
 
     // =========================================================
     // DELETE BY UUID
     // =========================================================
 
-    /**
-     * Soft delete.
-     * <p>
-     * Incrementa a versão e preenche deleted_at.
-     */
+    @Override
     public int deleteById(UUID id) {
 
         String sql = """
@@ -279,8 +445,7 @@ public abstract class GenericJdbcRepository<T extends BaseEntity> {
 
         try (
                 Connection connection = dataSource.getConnection();
-                PreparedStatement statement =
-                        connection.prepareStatement(sql)
+                PreparedStatement statement = connection.prepareStatement(sql)
         ) {
 
             statement.setObject(1, id);
@@ -295,21 +460,7 @@ public abstract class GenericJdbcRepository<T extends BaseEntity> {
         }
     }
 
-
-    // =========================================================
-    // DELETE BY UUID + OPTIMISTIC LOCK
-    // =========================================================
-
-    /**
-     * Soft delete usando optimistic locking.
-     * <p>
-     * Retorna 1 quando a entidade foi removida.
-     * Retorna 0 quando:
-     * <p>
-     * - não existe;
-     * - já foi removida;
-     * - version está desatualizada.
-     */
+    @Override
     public int deleteById(
             UUID id,
             long expectedVersion
@@ -327,8 +478,7 @@ public abstract class GenericJdbcRepository<T extends BaseEntity> {
 
         try (
                 Connection connection = dataSource.getConnection();
-                PreparedStatement statement =
-                        connection.prepareStatement(sql)
+                PreparedStatement statement = connection.prepareStatement(sql)
         ) {
 
             statement.setObject(1, id);
@@ -344,11 +494,7 @@ public abstract class GenericJdbcRepository<T extends BaseEntity> {
         }
     }
 
-
-    // =========================================================
-    // DELETE ALL
-    // =========================================================
-
+    @Override
     public int deleteAll() {
 
         String sql = """
@@ -361,8 +507,7 @@ public abstract class GenericJdbcRepository<T extends BaseEntity> {
 
         try (
                 Connection connection = dataSource.getConnection();
-                PreparedStatement statement =
-                        connection.prepareStatement(sql)
+                PreparedStatement statement = connection.prepareStatement(sql)
         ) {
 
             return statement.executeUpdate();
@@ -375,11 +520,7 @@ public abstract class GenericJdbcRepository<T extends BaseEntity> {
         }
     }
 
-
-    // =========================================================
-    // DELETE ALL BY UUIDS
-    // =========================================================
-
+    @Override
     public int deleteAllById(List<UUID> ids) {
 
         if (ids == null || ids.isEmpty()) {
@@ -402,8 +543,7 @@ public abstract class GenericJdbcRepository<T extends BaseEntity> {
 
         try (
                 Connection connection = dataSource.getConnection();
-                PreparedStatement statement =
-                        connection.prepareStatement(sql)
+                PreparedStatement statement = connection.prepareStatement(sql)
         ) {
 
             for (int i = 0; i < ids.size(); i++) {
@@ -420,90 +560,11 @@ public abstract class GenericJdbcRepository<T extends BaseEntity> {
         }
     }
 
-
-    // =========================================================
-    // INSERT
-    // =========================================================
-
-    /**
-     * O insert genérico não é implementado automaticamente
-     * porque cada entidade possui colunas diferentes.
-     * <p>
-     * Cada repository específico deve implementar o INSERT.
-     */
-    public T insert(T entity) {
-        throw new UnsupportedOperationException(
-                "Insert must be implemented by the concrete repository: "
-                        + getClass().getSimpleName()
-        );
-    }
-
-
-    // =========================================================
-    // SAVE
-    // =========================================================
-
-    /**
-     * Save é deixado para o repository específico porque
-     * INSERT/UPDATE dependem das colunas da entidade.
-     */
-    public T save(T entity) {
-        throw new UnsupportedOperationException(
-                "Save must be implemented by the concrete repository: "
-                        + getClass().getSimpleName()
-        );
-    }
-
-
-    // =========================================================
-    // UPDATE WITH OPTIMISTIC LOCK
-    // =========================================================
-
-    /**
-     * Helper para repositories específicos construírem
-     * UPDATEs com versionamento.
-     * <p>
-     * O repository concreto fornece apenas o SET e os
-     * parâmetros adicionais.
-     */
-    protected int executeOptimisticUpdate(
-            Connection connection,
-            String sql,
-            UUID id,
-            long expectedVersion,
-            Object... parameters
-    ) throws SQLException {
-
-        try (
-                PreparedStatement statement =
-                        connection.prepareStatement(sql)
-        ) {
-
-            int index = 1;
-
-            for (Object parameter : parameters) {
-                setParameter(
-                        statement,
-                        index++,
-                        parameter
-                );
-            }
-
-            statement.setObject(index++, id);
-            statement.setLong(index, expectedVersion);
-
-            return statement.executeUpdate();
-        }
-    }
-
     // =========================================================
     // RESTORE BY UUID
     // =========================================================
 
-    /**
-     * Restaura uma entidade removida por soft delete (`deleted_at = NULL`).
-     * Incrementa a versão.
-     */
+    @Override
     public int restoreById(UUID id) {
 
         String sql = """
@@ -517,8 +578,7 @@ public abstract class GenericJdbcRepository<T extends BaseEntity> {
 
         try (
                 Connection connection = dataSource.getConnection();
-                PreparedStatement statement =
-                        connection.prepareStatement(sql)
+                PreparedStatement statement = connection.prepareStatement(sql)
         ) {
 
             statement.setObject(1, id);
@@ -533,15 +593,7 @@ public abstract class GenericJdbcRepository<T extends BaseEntity> {
         }
     }
 
-
-    // =========================================================
-    // RESTORE ALL BY UUIDS
-    // =========================================================
-
-    /**
-     * Restaura múltiplas entidades removidas por soft delete (`deleted_at = NULL`).
-     * Incrementa a versão de cada registro afetado.
-     */
+    @Override
     public int restoreAllByIds(List<UUID> ids) {
 
         if (ids == null || ids.isEmpty()) {
@@ -564,8 +616,7 @@ public abstract class GenericJdbcRepository<T extends BaseEntity> {
 
         try (
                 Connection connection = dataSource.getConnection();
-                PreparedStatement statement =
-                        connection.prepareStatement(sql)
+                PreparedStatement statement = connection.prepareStatement(sql)
         ) {
 
             for (int i = 0; i < ids.size(); i++) {
@@ -582,14 +633,11 @@ public abstract class GenericJdbcRepository<T extends BaseEntity> {
         }
     }
 
-
     // =========================================================
     // HARD DELETE BY UUID (FORCE DELETE)
     // =========================================================
 
-    /**
-     * Remove fisicamente a linha do banco de dados (Hard Delete).
-     */
+    @Override
     public int deleteForceById(UUID id) {
 
         String sql = """
@@ -599,8 +647,7 @@ public abstract class GenericJdbcRepository<T extends BaseEntity> {
 
         try (
                 Connection connection = dataSource.getConnection();
-                PreparedStatement statement =
-                        connection.prepareStatement(sql)
+                PreparedStatement statement = connection.prepareStatement(sql)
         ) {
 
             statement.setObject(1, id);
@@ -615,14 +662,7 @@ public abstract class GenericJdbcRepository<T extends BaseEntity> {
         }
     }
 
-
-    // =========================================================
-    // HARD DELETE ALL BY UUIDS (FORCE DELETE ALL)
-    // =========================================================
-
-    /**
-     * Remove fisicamente múltiplas linhas do banco de dados (Hard Delete).
-     */
+    @Override
     public int deleteAllForceById(List<UUID> ids) {
 
         if (ids == null || ids.isEmpty()) {
@@ -641,8 +681,7 @@ public abstract class GenericJdbcRepository<T extends BaseEntity> {
 
         try (
                 Connection connection = dataSource.getConnection();
-                PreparedStatement statement =
-                        connection.prepareStatement(sql)
+                PreparedStatement statement = connection.prepareStatement(sql)
         ) {
 
             for (int i = 0; i < ids.size(); i++) {
@@ -660,7 +699,40 @@ public abstract class GenericJdbcRepository<T extends BaseEntity> {
     }
 
     // =========================================================
-    // JDBC PARAMETER
+    // UPDATE WITH OPTIMISTIC LOCK
+    // =========================================================
+
+    protected int executeOptimisticUpdate(
+            Connection connection,
+            String sql,
+            UUID id,
+            long expectedVersion,
+            Object... parameters
+    ) throws SQLException {
+
+        try (
+                PreparedStatement statement = connection.prepareStatement(sql)
+        ) {
+
+            int index = 1;
+
+            for (Object parameter : parameters) {
+                setParameter(
+                        statement,
+                        index++,
+                        parameter
+                );
+            }
+
+            statement.setObject(index++, id);
+            statement.setLong(index, expectedVersion);
+
+            return statement.executeUpdate();
+        }
+    }
+
+    // =========================================================
+    // JDBC PARAMETER & HELPERS
     // =========================================================
 
     protected void setParameter(
@@ -683,17 +755,11 @@ public abstract class GenericJdbcRepository<T extends BaseEntity> {
         );
     }
 
-
-    // =========================================================
-    // HELPERS
-    // =========================================================
-
     protected String placeholders(
             int count
     ) {
 
-        StringJoiner joiner =
-                new StringJoiner(", ");
+        StringJoiner joiner = new StringJoiner(", ");
 
         for (int i = 0; i < count; i++) {
             joiner.add("?");
@@ -701,6 +767,10 @@ public abstract class GenericJdbcRepository<T extends BaseEntity> {
 
         return joiner.toString();
     }
+
+    // =========================================================
+    // PAGINATION & QUERY BUILDER
+    // =========================================================
 
     protected Page<T> findAll(
             Query query,
@@ -839,8 +909,7 @@ public abstract class GenericJdbcRepository<T extends BaseEntity> {
     ) throws SQLException {
 
         try (
-                PreparedStatement statement =
-                        connection.prepareStatement(sql)
+                PreparedStatement statement = connection.prepareStatement(sql)
         ) {
 
             bindParameters(
@@ -859,11 +928,6 @@ public abstract class GenericJdbcRepository<T extends BaseEntity> {
         }
     }
 
-
-    // =========================================================
-    // SELECT PAGINATED
-    // =========================================================
-
     private List<T> executeSelect(
             Connection connection,
             String sql,
@@ -874,8 +938,7 @@ public abstract class GenericJdbcRepository<T extends BaseEntity> {
         List<T> result = new ArrayList<>();
 
         try (
-                PreparedStatement statement =
-                        connection.prepareStatement(sql)
+                PreparedStatement statement = connection.prepareStatement(sql)
         ) {
 
             int index = bindParameters(
@@ -922,5 +985,4 @@ public abstract class GenericJdbcRepository<T extends BaseEntity> {
 
         return index;
     }
-
 }
