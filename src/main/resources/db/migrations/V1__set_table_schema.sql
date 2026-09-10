@@ -208,23 +208,49 @@ CREATE TABLE roles (
 -- 6. PERMISSIONS
 -- =========================================================
 
+CREATE TYPE permission_risk_level AS ENUM ('LOW', 'MEDIUM', 'HIGH', 'CRITICAL');
+CREATE TYPE permission_module AS ENUM ('AUTHENTICATION', 'AUTHORIZATION', 'IDENTITY', 'AUDIT', 'MFA', 'RELIABILITY');
+CREATE TYPE permission_resource AS ENUM ('USER', 'SESSION', 'ROLE', 'PERMISSION', 'AUDIT_LOG', 'SYSTEM_SETTING');
+
 CREATE TABLE permissions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
     name VARCHAR(100) NOT NULL,
     slug VARCHAR(150) NOT NULL,
     description TEXT,
+
+    module permission_module NOT NULL,
+    resource permission_resource NOT NULL,
+    action VARCHAR(50) NOT NULL,
+    risk_level permission_risk_level NOT NULL DEFAULT 'LOW',
+
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    is_system BOOLEAN NOT NULL DEFAULT FALSE,
+
+    metadata JSONB,
     version BIGINT NOT NULL DEFAULT 0,
+
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMPTZ,
 
+    created_by UUID,
+
     CONSTRAINT uk_permissions_slug UNIQUE (slug),
     CONSTRAINT uk_permissions_name UNIQUE (name),
     CONSTRAINT ck_permissions_slug_not_empty CHECK (TRIM(slug) <> ''),
-    CONSTRAINT ck_permissions_version CHECK (version >= 0)
+    CONSTRAINT ck_permissions_version CHECK (version >= 0),
+
+    CONSTRAINT fk_permissions_created_by
+            FOREIGN KEY (created_by)
+            REFERENCES users(id)
+            ON DELETE SET NULL
 );
 
+
+CREATE INDEX idx_permissions_module ON permissions (module);
+CREATE INDEX idx_permissions_resource ON permissions (resource);
+CREATE INDEX idx_permissions_active ON permissions (is_active) WHERE deleted_at IS NULL;
 
 -- =========================================================
 -- 7. USER_ROLES
