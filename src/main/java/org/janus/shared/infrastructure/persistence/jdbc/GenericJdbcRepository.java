@@ -5,13 +5,10 @@ import org.janus.shared.domain.base.filter.FilterBaseDTO;
 import org.janus.shared.domain.base.model.BaseEntity;
 import org.janus.shared.domain.page.Page;
 import org.janus.shared.domain.queries.Query;
+import org.postgresql.util.PGobject;
 
 import javax.sql.DataSource;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Types;
+import java.sql.*;
 import java.time.OffsetDateTime;
 import java.util.*;
 
@@ -19,6 +16,42 @@ public abstract class GenericJdbcRepository<T extends BaseEntity> {
 
     @Inject
     protected DataSource dataSource;
+
+    protected PGobject postgresJsonb(String value) {
+        if (value == null) {
+            return null;
+        }
+
+        try {
+            PGobject object = new PGobject();
+            object.setType("jsonb");
+            object.setValue(value);
+            return object;
+        } catch (SQLException e) {
+            throw new IllegalStateException(
+                    "Failed to create PostgreSQL JSONB value",
+                    e
+            );
+        }
+    }
+
+    protected PGobject postgresEnum(String type, Enum<?> value) {
+        if (value == null) {
+            return null;
+        }
+
+        try {
+            PGobject object = new PGobject();
+            object.setType(type);
+            object.setValue(value.name());
+            return object;
+        } catch (SQLException e) {
+            throw new IllegalStateException(
+                    "Failed to create PostgreSQL enum value: " + type,
+                    e
+            );
+        }
+    }
 
     // =========================================================
     // REQUIRED
@@ -59,7 +92,7 @@ public abstract class GenericJdbcRepository<T extends BaseEntity> {
 
     /**
      * Mapeia os campos existentes em BaseEntity.
-     *
+     * <p>
      * As entidades específicas devem chamar este método
      * antes de mapear seus próprios campos.
      */
@@ -195,7 +228,7 @@ public abstract class GenericJdbcRepository<T extends BaseEntity> {
 
     /**
      * Soft delete.
-     *
+     * <p>
      * Incrementa a versão e preenche deleted_at.
      */
     public int deleteById(UUID id) {
@@ -234,10 +267,10 @@ public abstract class GenericJdbcRepository<T extends BaseEntity> {
 
     /**
      * Soft delete usando optimistic locking.
-     *
+     * <p>
      * Retorna 1 quando a entidade foi removida.
      * Retorna 0 quando:
-     *
+     * <p>
      * - não existe;
      * - já foi removida;
      * - version está desatualizada.
@@ -360,7 +393,7 @@ public abstract class GenericJdbcRepository<T extends BaseEntity> {
     /**
      * O insert genérico não é implementado automaticamente
      * porque cada entidade possui colunas diferentes.
-     *
+     * <p>
      * Cada repository específico deve implementar o INSERT.
      */
     public T insert(T entity) {
@@ -394,7 +427,7 @@ public abstract class GenericJdbcRepository<T extends BaseEntity> {
     /**
      * Helper para repositories específicos construírem
      * UPDATEs com versionamento.
-     *
+     * <p>
      * O repository concreto fornece apenas o SET e os
      * parâmetros adicionais.
      */
@@ -616,7 +649,6 @@ public abstract class GenericJdbcRepository<T extends BaseEntity> {
     }
 
 
-
     // =========================================================
     // HELPERS
     // =========================================================
@@ -657,22 +689,22 @@ public abstract class GenericJdbcRepository<T extends BaseEntity> {
         );
 
         String countSql = """
-            SELECT COUNT(*)
-            FROM %s
-            %s
-            """.formatted(
+                SELECT COUNT(*)
+                FROM %s
+                %s
+                """.formatted(
                 getTableName(),
                 finalWhere
         );
 
         String selectSql = """
-            SELECT *
-            FROM %s
-            %s
-            ORDER BY %s
-            LIMIT ?
-            OFFSET ?
-            """.formatted(
+                SELECT *
+                FROM %s
+                %s
+                ORDER BY %s
+                LIMIT ?
+                OFFSET ?
+                """.formatted(
                 getTableName(),
                 finalWhere,
                 orderClause
