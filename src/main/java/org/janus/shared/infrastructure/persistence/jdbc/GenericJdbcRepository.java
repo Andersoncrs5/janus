@@ -57,7 +57,6 @@ public abstract class GenericJdbcRepository<T extends BaseEntity> {
     // REQUIRED
     // =========================================================
 
-
     public List<T> findAll() {
         String sql = String.format("SELECT * FROM %s WHERE deleted_at IS NULL", getTableName());
         List<T> result = new ArrayList<>();
@@ -185,6 +184,42 @@ public abstract class GenericJdbcRepository<T extends BaseEntity> {
         }
     }
 
+    public Optional<T> findByIdForUpdate(UUID id) {
+        if (id == null) {
+            return Optional.empty();
+        }
+
+        String sql = """
+                SELECT *
+                FROM %s
+                WHERE id = ?
+                  AND deleted_at IS NULL
+                FOR UPDATE
+                """.formatted(getTableName());
+
+        try (
+                Connection connection = dataSource.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql)
+        ) {
+
+            statement.setObject(1, id);
+
+            try (ResultSet rs = statement.executeQuery()) {
+
+                if (!rs.next()) {
+                    return Optional.empty();
+                }
+
+                return Optional.of(mapRow(rs));
+            }
+
+        } catch (SQLException e) {
+            throw new IllegalStateException(
+                    "Error finding entity for update by UUID: " + id,
+                    e
+            );
+        }
+    }
 
     // =========================================================
     // EXISTS BY UUID

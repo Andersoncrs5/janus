@@ -39,5 +39,7 @@ public interface GenericRepository<T extends BaseEntity, ID> {
 
     Optional<T> findById(ID id);
 
+    Optional<T> findByIdForUpdate(ID id);
+
     boolean existsById(ID id);
 }
