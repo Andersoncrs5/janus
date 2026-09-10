@@ -297,10 +297,15 @@ CREATE TABLE role_permissions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     role_id UUID NOT NULL,
     permission_id UUID NOT NULL,
-    version BIGINT NOT NULL DEFAULT 0,
+
+    effect VARCHAR(10) NOT NULL DEFAULT 'ALLOW',
+    conditions JSONB,
+
     expires_at TIMESTAMPTZ,
     assigned_by UUID,
     assigned_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    version BIGINT NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMPTZ,
@@ -313,13 +318,28 @@ CREATE TABLE role_permissions (
         FOREIGN KEY (permission_id)
         REFERENCES permissions(id)
         ON DELETE CASCADE,
-    CONSTRAINT uk_role_permission_ids UNIQUE (permission_id, role_id),
-    CONSTRAINT ck_role_permissions_version CHECK (version >= 0)
+    CONSTRAINT fk_role_permissions_assigned_by
+        FOREIGN KEY (assigned_by)
+        REFERENCES users(id)
+        ON DELETE SET NULL,
+
+    CONSTRAINT ck_role_permissions_effect
+        CHECK (effect IN ('ALLOW', 'DENY')),
+    CONSTRAINT ck_role_permissions_version
+        CHECK (version >= 0)
 );
 
-CREATE INDEX idx_role_permissions_permission_id
-    ON role_permissions(permission_id);
+CREATE UNIQUE INDEX uk_role_permissions_active
+    ON role_permissions (role_id, permission_id)
+    WHERE deleted_at IS NULL;
 
+CREATE INDEX idx_role_permissions_lookup
+    ON role_permissions (role_id, permission_id)
+    WHERE deleted_at IS NULL;
+
+CREATE INDEX idx_role_permissions_permission_id
+    ON role_permissions (permission_id)
+    WHERE deleted_at IS NULL;
 
 -- =========================================================
 -- 9. MFA_FACTORS
@@ -356,6 +376,25 @@ CREATE INDEX idx_mfa_factors_enabled
     WHERE is_enabled = TRUE
       AND deleted_at IS NULL;
 
+CREATE TABLE mfa_recovery_codes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL,
+    code_hash VARCHAR(255) NOT NULL,
+    is_used BOOLEAN NOT NULL DEFAULT FALSE,
+    used_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_mfa_recovery_codes_user
+        FOREIGN KEY (user_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE,
+    CONSTRAINT ck_mfa_recovery_codes_hash_not_empty
+        CHECK (TRIM(code_hash) <> '')
+);
+
+CREATE INDEX idx_mfa_recovery_codes_user
+    ON mfa_recovery_codes(user_id)
+    WHERE is_used = FALSE;
 
 -- =========================================================
 -- UPDATED_AT TRIGGER FUNCTION
