@@ -1,6 +1,9 @@
 package org.janus.shared.domain.base.model;
 
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 import org.jspecify.annotations.Nullable;
 
@@ -17,17 +20,13 @@ public abstract class BaseEntity {
 
     protected UUID id;
 
-    @Setter(AccessLevel.PROTECTED)
     protected Long version;
 
-    @Setter(AccessLevel.PROTECTED)
     protected OffsetDateTime createdAt;
 
-    @Setter(AccessLevel.PROTECTED)
     protected OffsetDateTime updatedAt;
 
     @Nullable
-    @Setter(AccessLevel.PROTECTED)
     protected OffsetDateTime deletedAt;
 
     public boolean isDeleted() {
