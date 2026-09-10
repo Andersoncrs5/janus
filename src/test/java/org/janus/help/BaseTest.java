@@ -3,11 +3,15 @@ package org.janus.help;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.inject.Inject;
 import org.janus.modules.authentication.adapter.out.persistence.repository.RefreshTokenRepositoryJdbc;
+import org.janus.modules.authentication.adapter.out.persistence.repository.SessionRepositoryJdbc;
 import org.janus.modules.authentication.domain.entity.RefreshTokenEntity;
+import org.janus.modules.authentication.domain.entity.SessionEntity;
 import org.janus.modules.authorization.adapter.out.persistence.repository.RoleRepositoryJdbc;
 import org.janus.modules.authorization.adapter.out.persistence.repository.UserRoleRepositoryJdbc;
+import org.janus.modules.authorization.domain.entity.PermissionEntity;
 import org.janus.modules.authorization.domain.entity.RoleEntity;
 import org.janus.modules.authorization.domain.entity.UserRoleEntity;
+import org.janus.modules.authorization.infrastructure.out.PermissionRepository;
 import org.janus.modules.identity.domain.entity.UserCredentialsEntity;
 import org.janus.modules.identity.domain.entity.UserEntity;
 import org.janus.modules.identity.ports.out.UserCredentialRepository;
@@ -15,6 +19,9 @@ import org.janus.modules.identity.ports.out.UserRepository;
 import org.janus.modules.reliability.domain.entity.InboxEntity;
 import org.janus.modules.reliability.port.out.InboxRepository;
 import org.janus.shared.domain.enums.InboxStatusEnum;
+import org.janus.shared.domain.enums.permission.PermissionModule;
+import org.janus.shared.domain.enums.permission.PermissionResource;
+import org.janus.shared.domain.enums.permission.PermissionRiskLevel;
 import org.junit.jupiter.api.BeforeEach;
 
 import java.time.OffsetDateTime;
@@ -41,14 +48,59 @@ public class BaseTest {
     protected InboxRepository inboxRepository;
 
     @Inject
+    protected SessionRepositoryJdbc sessionRepository;
+
+    @Inject
+    protected PermissionRepository permissionRepository;
+
+    @Inject
     protected ObjectMapper mapper;
 
     @BeforeEach
     void setup() {
+        this.permissionRepository.deleteAll();
         this.userRoleRepository.deleteAll();
         this.inboxRepository.deleteAll();
         this.userCredentialRepository.deleteAll();
         this.userRepository.deleteAll();
+    }
+
+    protected PermissionEntity createSamplePermissionEntity(UUID createdBy) {
+        return PermissionEntity.builder()
+                .name("Read Users")
+                .slug("users:read")
+                .description("Permission to read user data")
+                .module(PermissionModule.IDENTITY)
+                .resource(PermissionResource.USER)
+                .action("read")
+                .riskLevel(PermissionRiskLevel.LOW)
+                .isActive(true)
+                .isSystem(false)
+                .metadata("{\"category\": \"user_management\"}")
+                .createdBy(createdBy)
+                .build();
+    }
+
+    protected PermissionEntity createPermissionEntity(UUID createdBy) {
+        return createSamplePermissionEntity(createdBy);
+    }
+
+    protected PermissionEntity initPermission(UUID createdBy) {
+        return permissionRepository.insert(createSamplePermissionEntity(createdBy));
+    }
+
+    protected SessionEntity createSampleSession(UUID userId) {
+        SessionEntity entity = new SessionEntity();
+        entity.setUserId(userId);
+        entity.setIpAddress("192.168.1.1");
+        entity.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
+        entity.setIsRevoked(false);
+        entity.setExpiresAt(OffsetDateTime.now().plusHours(24));
+        return entity;
+    }
+
+    protected SessionEntity initSession(UUID userId) {
+        return sessionRepository.insert(createSampleSession(userId));
     }
 
     protected RefreshTokenEntity createSampleRefreshToken(UUID sessionId, UUID userId, String tokenHash) {
