@@ -44,12 +44,28 @@ public class Result<T> {
         return errors.stream().findFirst();
     }
 
+    public static <T> Result<T> noContent() {
+        return new Result<>(null, List.of(), 204);
+    }
+
     public static <T> Result<T> success() {
         return new Result<>(null, List.of(), 200);
     }
 
+    public static <T> Result<T> ok() {
+        return new Result<>(null, List.of(), 200);
+    }
+
+    public static <T> Result<T> ok(T value) {
+        return new Result<>(value, List.of(), 200);
+    }
+
     public static <T> Result<T> created(T value) {
         return new Result<>(value, List.of(), 201);
+    }
+
+    public static <T> Result<T> badRequest(String value) {
+        return new Result<>(null, List.of(value), 400);
     }
 
     public static <T> Result<T> success(T value) {
