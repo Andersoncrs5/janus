@@ -290,6 +290,41 @@ public class Query {
         }
     }
 
+    @Getter
+    public static class Count extends QueryBuilder<Count> {
+
+        public Count(String table) {
+            super(table);
+        }
+
+        public String buildSql() {
+            return "SELECT COUNT(*) FROM %s %s%s".formatted(
+                    table,
+                    buildJoinsClause(),
+                    buildWhereClause()
+            ).trim();
+        }
+
+        public long execute(DataSource dataSource) {
+            try (
+                    Connection connection = dataSource.getConnection();
+                    PreparedStatement statement = connection.prepareStatement(buildSql())
+            ) {
+                for (int i = 0; i < parameters.size(); i++) {
+                    statement.setObject(i + 1, parameters.get(i));
+                }
+                try (ResultSet rs = statement.executeQuery()) {
+                    if (rs.next()) {
+                        return rs.getLong(1);
+                    }
+                    return 0L;
+                }
+            } catch (SQLException e) {
+                throw new IllegalStateException("Error executing COUNT query for table: " + table, e);
+            }
+        }
+    }
+
     // =========================================================
     // AND
     // =========================================================
@@ -370,6 +405,7 @@ public class Query {
                 value
         );
     }
+
 
     // =========================================================
     // WHERE

@@ -15,9 +15,40 @@ public abstract class QueryBuilder<T extends QueryBuilder<T>> {
         this.table = table;
     }
 
+    public T andExpired(String column, Boolean expired) {
+        if (expired == null) {
+            return (T) this;
+        }
+
+        if (expired) {
+            return and(
+                    column + " IS NOT NULL AND " +
+                            column + " <= CURRENT_TIMESTAMP"
+            );
+        }
+
+        return and(
+                "(" +
+                        column + " IS NULL OR " +
+                        column + " > CURRENT_TIMESTAMP" +
+                        ")"
+        );
+    }
+
     // =========================================================
     // CONDITIONS GERAIS (Movidos para cá!)
     // =========================================================
+
+    public T whereIn(String column, Collection<?> values) {
+        if (values == null || values.isEmpty()) {
+            return (T) this;
+        }
+
+        String placeholders = placeholders(values.size());
+        conditions.add(column + " IN (" + placeholders + ")");
+        parameters.addAll(values);
+        return (T) this;
+    }
 
     public T where(String column, Object value) {
         if (value != null) {
