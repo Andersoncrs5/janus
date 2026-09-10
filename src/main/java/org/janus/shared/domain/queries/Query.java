@@ -25,6 +25,81 @@ public class Query {
         T map(ResultSet rs) throws SQLException;
     }
 
+    @Getter
+    public static class Select extends QueryBuilder<Select> {
+        private Integer limit;
+        private String orderByClause = "";
+
+        public Select(String table) {
+            super(table);
+        }
+
+        public Select where(String column, Object value) {
+            if (value != null) {
+                this.conditions.add(column + " = ?");
+                this.parameters.add(value);
+            }
+            return this;
+        }
+
+        public Select limit(int limit) {
+            this.limit = limit;
+            return this;
+        }
+
+        public String buildSql() {
+            String limitClause = limit != null ? " LIMIT " + limit : "";
+
+            return "SELECT * FROM %s %s%s%s%s"
+                    .formatted(table, buildJoinsClause(), buildWhereClause(), buildOrderByClause(), limitClause)
+                    .trim();
+        }
+
+        public <T> Optional<T> findFirst(DataSource dataSource, RowMapper<T> mapper) {
+            this.limit = 1;
+
+            try (
+                    Connection connection = dataSource.getConnection();
+                    PreparedStatement statement = connection.prepareStatement(buildSql())
+            ) {
+                for (int i = 0; i < parameters.size(); i++) {
+                    statement.setObject(i + 1, parameters.get(i));
+                }
+
+                try (ResultSet rs = statement.executeQuery()) {
+                    if (rs.next()) {
+                        return Optional.of(mapper.map(rs));
+                    }
+                    return Optional.empty();
+                }
+            } catch (SQLException e) {
+                throw new IllegalStateException("Error executing SELECT (findFirst) query for table: " + table, e);
+            }
+        }
+
+        public <T> List<T> findAll(DataSource dataSource, RowMapper<T> mapper) {
+            List<T> results = new ArrayList<>();
+            try (
+                    Connection connection = dataSource.getConnection();
+                    PreparedStatement statement = connection.prepareStatement(buildSql())
+            ) {
+                for (int i = 0; i < parameters.size(); i++) {
+                    statement.setObject(i + 1, parameters.get(i));
+                }
+
+                try (ResultSet rs = statement.executeQuery()) {
+                    while (rs.next()) {
+                        results.add(mapper.map(rs));
+                    }
+                    return results;
+                }
+            } catch (SQLException e) {
+                throw new IllegalStateException("Error executing SELECT (findAll) query for table: " + table, e);
+            }
+        }
+    }
+
+
     public static class Insert extends QueryBuilder<Insert> {
         private final Map<String, Object> values = new LinkedHashMap<>();
         private final Map<String, String> suffixes = new HashMap<>();
@@ -182,79 +257,6 @@ public class Query {
         }
     }
 
-    @Getter
-    public static class Select extends QueryBuilder<Select> {
-        private Integer limit;
-        private String orderByClause = "";
-
-        public Select(String table) {
-            super(table);
-        }
-
-        public Select where(String column, Object value) {
-            if (value != null) {
-                this.conditions.add(column + " = ?");
-                this.parameters.add(value);
-            }
-            return this;
-        }
-
-        public Select limit(int limit) {
-            this.limit = limit;
-            return this;
-        }
-
-        public String buildSql() {
-            String limitClause = limit != null ? " LIMIT " + limit : "";
-
-            return "SELECT * FROM %s %s%s%s%s"
-                    .formatted(table, buildJoinsClause(), buildWhereClause(), buildOrderByClause(), limitClause)
-                    .trim();
-        }
-
-        public <T> Optional<T> findFirst(DataSource dataSource, RowMapper<T> mapper) {
-            this.limit = 1;
-
-            try (
-                    Connection connection = dataSource.getConnection();
-                    PreparedStatement statement = connection.prepareStatement(buildSql())
-            ) {
-                for (int i = 0; i < parameters.size(); i++) {
-                    statement.setObject(i + 1, parameters.get(i));
-                }
-
-                try (ResultSet rs = statement.executeQuery()) {
-                    if (rs.next()) {
-                        return Optional.of(mapper.map(rs));
-                    }
-                    return Optional.empty();
-                }
-            } catch (SQLException e) {
-                throw new IllegalStateException("Error executing SELECT (findFirst) query for table: " + table, e);
-            }
-        }
-
-        public <T> List<T> findAll(DataSource dataSource, RowMapper<T> mapper) {
-            List<T> results = new ArrayList<>();
-            try (
-                    Connection connection = dataSource.getConnection();
-                    PreparedStatement statement = connection.prepareStatement(buildSql())
-            ) {
-                for (int i = 0; i < parameters.size(); i++) {
-                    statement.setObject(i + 1, parameters.get(i));
-                }
-
-                try (ResultSet rs = statement.executeQuery()) {
-                    while (rs.next()) {
-                        results.add(mapper.map(rs));
-                    }
-                    return results;
-                }
-            } catch (SQLException e) {
-                throw new IllegalStateException("Error executing SELECT (findAll) query for table: " + table, e);
-            }
-        }
-    }
 
     @Getter
     public static class Exists extends QueryBuilder<Exists> {
@@ -694,5 +696,33 @@ public class Query {
                 "CROSS JOIN " + table
         );
     }
+
+    public void andEnumInCast(
+            String column,
+            Collection<? extends Enum<?>> values,
+            String sqlType
+    ) {
+        if (values == null || values.isEmpty()) {
+            return;
+        }
+
+        String placeholders = String.join(
+                ", ",
+                values.stream()
+                        .map(value -> "?::" + sqlType)
+                        .toList()
+        );
+
+        conditions.add(
+                column + " IN (" + placeholders + ")"
+        );
+
+        parameters.addAll(
+                values.stream()
+                        .map(Enum::name)
+                        .toList()
+        );
+    }
+
 
 }

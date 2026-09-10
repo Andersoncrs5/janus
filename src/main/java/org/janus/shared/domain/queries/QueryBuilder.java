@@ -1,9 +1,6 @@
 package org.janus.shared.domain.queries;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.StringJoiner;
+import java.util.*;
 
 @SuppressWarnings("unchecked")
 public abstract class QueryBuilder<T extends QueryBuilder<T>> {
@@ -382,5 +379,31 @@ public abstract class QueryBuilder<T extends QueryBuilder<T>> {
         return orderByClause;
     }
 
+    public void andEnumInCast(
+            String column,
+            Collection<? extends Enum<?>> values,
+            String sqlType
+    ) {
+        if (values == null || values.isEmpty()) {
+            return;
+        }
+
+        String placeholders = String.join(
+                ", ",
+                values.stream()
+                        .map(value -> "?::" + sqlType)
+                        .toList()
+        );
+
+        conditions.add(
+                column + " IN (" + placeholders + ")"
+        );
+
+        parameters.addAll(
+                values.stream()
+                        .map(Enum::name)
+                        .toList()
+        );
+    }
 
 }
