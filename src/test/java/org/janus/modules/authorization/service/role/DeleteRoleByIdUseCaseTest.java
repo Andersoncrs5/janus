@@ -1,4 +1,4 @@
-package org.janus.modules.authorization.service;
+package org.janus.modules.authorization.service.role;
 
 import org.janus.modules.authorization.application.service.role.DeleteRoleByIdUseCase;
 import org.janus.modules.authorization.domain.entity.RoleEntity;
