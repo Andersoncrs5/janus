@@ -63,3 +63,8 @@ CREATE INDEX idx_audit_logs_resource
 
 CREATE INDEX idx_audit_logs_created_at
     ON audit_logs(created_at DESC);
+
+ALTER TABLE audit_logs
+    ADD COLUMN trace_id VARCHAR(100),
+    ADD COLUMN span_id VARCHAR(100),
+    ADD COLUMN actor_type VARCHAR(30) NOT NULL DEFAULT 'USER';
