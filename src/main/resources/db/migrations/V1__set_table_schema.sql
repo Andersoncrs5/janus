@@ -288,17 +288,18 @@ CREATE TABLE user_roles (
 CREATE INDEX idx_user_roles_role_id
     ON user_roles(role_id);
 
+-- =========================================================
+-- 8. ENUM & ROLE_PERMISSIONS
+-- =========================================================
 
--- =========================================================
--- 8. ROLE_PERMISSIONS
--- =========================================================
+CREATE TYPE permission_effect_enum AS ENUM ('ALLOW', 'DENY');
 
 CREATE TABLE role_permissions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     role_id UUID NOT NULL,
     permission_id UUID NOT NULL,
 
-    effect VARCHAR(10) NOT NULL DEFAULT 'ALLOW',
+    effect permission_effect_enum NOT NULL DEFAULT 'ALLOW',
     conditions JSONB,
 
     expires_at TIMESTAMPTZ,
@@ -323,8 +324,6 @@ CREATE TABLE role_permissions (
         REFERENCES users(id)
         ON DELETE SET NULL,
 
-    CONSTRAINT ck_role_permissions_effect
-        CHECK (effect IN ('ALLOW', 'DENY')),
     CONSTRAINT ck_role_permissions_version
         CHECK (version >= 0)
 );
