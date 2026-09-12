@@ -17,8 +17,6 @@ public record CreateRolePermissionDTO(
 
         String conditions,
 
-        OffsetDateTime expiresAt,
-
-        UUID assignedBy
+        OffsetDateTime expiresAt
 ) {
 }
