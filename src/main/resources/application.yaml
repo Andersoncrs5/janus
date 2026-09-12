@@ -74,6 +74,182 @@ janus:
         slug: user
         description: Standard User Role
         is-system: true
+    permissions:
+      # --- Usuários ---
+      - name: "Criar Usuário"
+        slug: "users:create"
+        description: "Criar novos usuários no sistema"
+        module: "AUTHORIZATION"
+        resource: "USERS"
+        action: "create"
+        risk-level: "HIGH"
+        is-system: true
+        is-active: true
+
+      - name: "Visualizar Usuários"
+        slug: "users:read"
+        description: "Visualizar informações e listas de usuários"
+        module: "AUTHORIZATION"
+        resource: "USERS"
+        action: "read"
+        risk-level: "LOW"
+        is-system: true
+        is-active: true
+
+      - name: "Atualizar Usuário"
+        slug: "users:update"
+        description: "Atualizar dados de usuários existentes"
+        module: "AUTHORIZATION"
+        resource: "USERS"
+        action: "update"
+        risk-level: "MEDIUM"
+        is-system: true
+        is-active: true
+
+      - name: "Remover Usuário"
+        slug: "users:delete"
+        description: "Remover ou inativar usuários"
+        module: "AUTHORIZATION"
+        resource: "USERS"
+        action: "delete"
+        risk-level: "HIGH"
+        is-system: true
+        is-active: true
+
+      - name: "Personificar Usuário"
+        slug: "users:impersonate"
+        description: "Assumir a sessão de outro usuário (suporte/admin)"
+        module: "AUTHORIZATION"
+        resource: "USERS"
+        action: "impersonate"
+        risk-level: "CRITICAL"
+        is-system: true
+        is-active: true
+
+      # --- Roles ---
+      - name: "Criar Papel"
+        slug: "roles:create"
+        description: "Criar novos papéis no sistema"
+        module: "AUTHORIZATION"
+        resource: "ROLES"
+        action: "create"
+        risk-level: "HIGH"
+        is-system: true
+        is-active: true
+
+      - name: "Visualizar Papéis"
+        slug: "roles:read"
+        description: "Listar e visualizar papéis existentes"
+        module: "AUTHORIZATION"
+        resource: "ROLES"
+        action: "read"
+        risk-level: "LOW"
+        is-system: true
+        is-active: true
+
+      - name: "Atualizar Papel"
+        slug: "roles:update"
+        description: "Editar permissões e metadados de papéis"
+        module: "AUTHORIZATION"
+        resource: "ROLES"
+        action: "update"
+        risk-level: "HIGH"
+        is-system: true
+        is-active: true
+
+      - name: "Remover Papel"
+        slug: "roles:delete"
+        description: "Remover papéis do sistema"
+        module: "AUTHORIZATION"
+        resource: "ROLES"
+        action: "delete"
+        risk-level: "CRITICAL"
+        is-system: true
+        is-active: true
+
+      # --- Permissões ---
+      - name: "Visualizar Permissões"
+        slug: "permissions:read"
+        description: "Listar todas as permissões registradas na API"
+        module: "AUTHORIZATION"
+        resource: "PERMISSIONS"
+        action: "read"
+        risk-level: "LOW"
+        is-system: true
+        is-active: true
+
+      - name: "Criar Permissão"
+        slug: "permissions:create"
+        description: "Registrar novas permissões no catálogo"
+        module: "AUTHORIZATION"
+        resource: "PERMISSIONS"
+        action: "create"
+        risk-level: "CRITICAL"
+        is-system: true
+        is-active: true
+
+      # --- Role Permissions ---
+      - name: "Atribuir Permissão a Papel"
+        slug: "role-permissions:assign"
+        description: "Vincular permissões a um papel (ALLOW)"
+        module: "AUTHORIZATION"
+        resource: "ROLE_PERMISSIONS"
+        action: "assign"
+        risk-level: "CRITICAL"
+        is-system: true
+        is-active: true
+
+      - name: "Revogar Permissão de Papel"
+        slug: "role-permissions:revoke"
+        description: "Revogar permissões de um papel (DENY ou remoção)"
+        module: "AUTHORIZATION"
+        resource: "ROLE_PERMISSIONS"
+        action: "revoke"
+        risk-level: "CRITICAL"
+        is-system: true
+        is-active: true
+
+      - name: "Visualizar Permissões do Papel"
+        slug: "role-permissions:read"
+        description: "Listar permissões vinculadas a cada papel"
+        module: "AUTHORIZATION"
+        resource: "ROLE_PERMISSIONS"
+        action: "read"
+        risk-level: "LOW"
+        is-system: true
+        is-active: true
+
+      # --- Auditoria ---
+      - name: "Visualizar Auditoria"
+        slug: "audit:read"
+        description: "Visualizar logs de acesso e ações críticas"
+        module: "AUDIT"
+        resource: "AUDIT"
+        action: "read"
+        risk-level: "MEDIUM"
+        is-system: true
+        is-active: true
+
+      # --- Configurações ---
+      - name: "Visualizar Configurações do Sistema"
+        slug: "system:settings:read"
+        description: "Visualizar parâmetros do sistema"
+        module: "SYSTEM"
+        resource: "SETTINGS"
+        action: "read"
+        risk-level: "LOW"
+        is-system: true
+        is-active: true
+
+      - name: "Atualizar Configurações do Sistema"
+        slug: "system:settings:update"
+        description: "Alterar parâmetros globais da API"
+        module: "SYSTEM"
+        resource: "SETTINGS"
+        action: "update"
+        risk-level: "CRITICAL"
+        is-system: true
+        is-active: true
 
   security:
     argon2:
