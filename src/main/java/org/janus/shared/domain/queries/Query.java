@@ -28,10 +28,16 @@ public class Query {
     @Getter
     public static class Select extends QueryBuilder<Select> {
         private Integer limit;
+        private Integer offset;
         private String orderByClause = "";
 
         public Select(String table) {
             super(table);
+        }
+
+        public Select offset(int offset) {
+            this.offset = offset;
+            return this;
         }
 
         public Select where(String column, Object value) {
@@ -49,9 +55,17 @@ public class Query {
 
         public String buildSql() {
             String limitClause = limit != null ? " LIMIT " + limit : "";
+            String offsetClause = offset != null ? " OFFSET " + offset : ""; // <-- Adicionar esta linha
 
-            return "SELECT * FROM %s %s%s%s%s"
-                    .formatted(table, buildJoinsClause(), buildWhereClause(), buildOrderByClause(), limitClause)
+            return "SELECT * FROM %s %s%s%s%s%s"
+                    .formatted(
+                            table,
+                            buildJoinsClause(),
+                            buildWhereClause(),
+                            buildOrderByClause(),
+                            limitClause,
+                            offsetClause
+                    )
                     .trim();
         }
 
@@ -95,6 +109,28 @@ public class Query {
                 }
             } catch (SQLException e) {
                 throw new IllegalStateException("Error executing SELECT (findAll) query for table: " + table, e);
+            }
+        }
+
+        public long count(DataSource dataSource) {
+            String sql = "SELECT COUNT(*) FROM %s %s%s".formatted(table, buildJoinsClause(), buildWhereClause()).trim();
+
+            try (
+                    Connection connection = dataSource.getConnection();
+                    PreparedStatement statement = connection.prepareStatement(sql)
+            ) {
+                for (int i = 0; i < parameters.size(); i++) {
+                    statement.setObject(i + 1, parameters.get(i));
+                }
+
+                try (ResultSet rs = statement.executeQuery()) {
+                    if (rs.next()) {
+                        return rs.getLong(1);
+                    }
+                    return 0L;
+                }
+            } catch (SQLException e) {
+                throw new IllegalStateException("Error executing COUNT query for table: " + table, e);
             }
         }
     }

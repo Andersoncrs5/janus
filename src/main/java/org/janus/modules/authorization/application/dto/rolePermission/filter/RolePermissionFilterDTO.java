@@ -31,4 +31,5 @@ public class RolePermissionFilterDTO extends FilterBaseDTO {
 
     @QueryParam("orders")
     private List<RolePermissionOrder> orders = List.of(RolePermissionOrder.CREATED_AT);
+
 }

@@ -2,6 +2,7 @@ package org.janus.shared.domain.page;
 
 import lombok.Getter;
 
+import java.util.Collections;
 import java.util.List;
 
 @Getter
@@ -22,7 +23,7 @@ public class Page<T> {
             int page,
             int size
     ) {
-        this.content = content;
+        this.content = content != null ? content : Collections.emptyList();
         this.totalElements = totalElements;
         this.page = page;
         this.size = size;
@@ -33,6 +34,14 @@ public class Page<T> {
 
         this.first = page == 0;
         this.last = page >= totalPages - 1;
+    }
+
+    public static <T> Page<T> of(List<T> content, long totalElements, int page, int size) {
+        return new Page<>(content, totalElements, page, size);
+    }
+
+    public static <T> Page<T> empty(int page, int size) {
+        return new Page<>(Collections.emptyList(), 0, page, size);
     }
 
     public boolean hasNext() {

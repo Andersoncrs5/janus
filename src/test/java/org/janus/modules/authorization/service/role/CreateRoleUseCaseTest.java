@@ -1,4 +1,4 @@
-package org.janus.modules.authorization.service;
+package org.janus.modules.authorization.service.role;
 
 import org.janus.modules.authorization.application.dto.role.request.CreateRoleDTO;
 import org.janus.modules.authorization.application.mapper.RoleMapper;
