@@ -6,10 +6,12 @@ import org.janus.modules.authentication.adapter.out.persistence.repository.Refre
 import org.janus.modules.authentication.adapter.out.persistence.repository.SessionRepositoryJdbc;
 import org.janus.modules.authentication.domain.entity.RefreshTokenEntity;
 import org.janus.modules.authentication.domain.entity.SessionEntity;
+import org.janus.modules.authorization.adapter.out.persistence.repository.RolePermissionRepositoryJdbc;
 import org.janus.modules.authorization.adapter.out.persistence.repository.RoleRepositoryJdbc;
 import org.janus.modules.authorization.adapter.out.persistence.repository.UserRoleRepositoryJdbc;
 import org.janus.modules.authorization.domain.entity.PermissionEntity;
 import org.janus.modules.authorization.domain.entity.RoleEntity;
+import org.janus.modules.authorization.domain.entity.RolePermissionEntity;
 import org.janus.modules.authorization.domain.entity.UserRoleEntity;
 import org.janus.modules.authorization.infrastructure.out.PermissionRepository;
 import org.janus.modules.identity.domain.entity.UserCredentialsEntity;
@@ -22,8 +24,10 @@ import org.janus.shared.domain.enums.InboxStatusEnum;
 import org.janus.shared.domain.enums.permission.PermissionModule;
 import org.janus.shared.domain.enums.permission.PermissionResource;
 import org.janus.shared.domain.enums.permission.PermissionRiskLevel;
+import org.janus.shared.domain.enums.rolePermission.PermissionEffectEnum;
 import org.junit.jupiter.api.BeforeEach;
 
+import java.security.SecureRandom;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
@@ -51,24 +55,65 @@ public class BaseTest {
     protected SessionRepositoryJdbc sessionRepository;
 
     @Inject
+    protected RolePermissionRepositoryJdbc rolePermissionRepository;
+
+    @Inject
     protected PermissionRepository permissionRepository;
 
     @Inject
     protected ObjectMapper mapper;
 
+    private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    private static final SecureRandom RANDOM = new SecureRandom();
+
+
     @BeforeEach
     void setup() {
+        this.sessionRepository.deleteAll();
+        this.rolePermissionRepository.deleteAll();
         this.permissionRepository.deleteAll();
         this.userRoleRepository.deleteAll();
+        this.roleRepository.deleteAll();
         this.inboxRepository.deleteAll();
         this.userCredentialRepository.deleteAll();
         this.userRepository.deleteAll();
     }
 
+
+    protected String generateRandomString(int length) {
+        StringBuilder sb = new StringBuilder(length);
+        for (int i = 0; i < length; i++) {
+            int index = RANDOM.nextInt(CHARACTERS.length());
+            sb.append(CHARACTERS.charAt(index));
+        }
+        return sb.toString();
+    }
+
+    protected String generateRandomString() {
+        return generateRandomString(15);
+    }
+
+    protected RolePermissionEntity createSampleRolePermissionEntity(UUID roleId, UUID permissionId, UUID assignedBy) {
+        return RolePermissionEntity.builder()
+                .roleId(roleId)
+                .permissionId(permissionId)
+                .effect(PermissionEffectEnum.ALLOW)
+                .conditions("{\"scope\": \"all\"}")
+                .expiresAt(OffsetDateTime.now().plusDays(30))
+                .assignedBy(assignedBy)
+                .assignedAt(OffsetDateTime.now())
+                .build();
+    }
+
+    protected RolePermissionEntity createRolePermissionEntity(UUID roleId, UUID permissionId, UUID assignedBy) {
+        return createSampleRolePermissionEntity(roleId, permissionId, assignedBy);
+    }
+
     protected PermissionEntity createSamplePermissionEntity(UUID createdBy) {
+        var chars = generateRandomString();
         return PermissionEntity.builder()
-                .name("Read Users")
-                .slug("users:read")
+                .name("Read Users" + chars)
+                .slug("users:read:" + chars.toLowerCase())
                 .description("Permission to read user data")
                 .module(PermissionModule.IDENTITY)
                 .resource(PermissionResource.USER)
