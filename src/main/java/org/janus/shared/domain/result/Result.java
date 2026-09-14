@@ -19,6 +19,7 @@ public class Result<T> {
         this.statusCode = statusCode;
     }
 
+
     public T getData() {
         return value;
     }
@@ -46,6 +47,10 @@ public class Result<T> {
 
     public static <T> Result<T> noContent() {
         return new Result<>(null, List.of(), 204);
+    }
+
+    public static <T> Result<T> conflict(String message) {
+        return new Result<>(null, List.of(message), 409);
     }
 
     public static <T> Result<T> success() {
