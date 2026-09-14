@@ -18,6 +18,7 @@ quarkus:
       exp:
         token: 24
         refresh: 168
+        session: 86400
 
   smallrye-jwt:
     sign:
