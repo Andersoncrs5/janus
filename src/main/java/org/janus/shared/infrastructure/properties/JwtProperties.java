@@ -13,5 +13,7 @@ public interface JwtProperties {
         long token();
 
         long refresh();
+
+        long session();
     }
 }
