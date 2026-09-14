@@ -1,14 +1,18 @@
 package org.janus.modules.authorization.adapter.out.persistence.repository;
 
 import jakarta.enterprise.context.ApplicationScoped;
+import org.janus.modules.authorization.domain.entity.RoleEntity;
 import org.janus.modules.authorization.domain.entity.UserRoleEntity;
 import org.janus.modules.authorization.infrastructure.out.UserRoleRepository;
 import org.janus.shared.domain.queries.Query;
 import org.janus.shared.infrastructure.persistence.jdbc.GenericJdbcRepository;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -135,5 +139,82 @@ public class UserRoleRepositoryJdbc
                 .where("role_id", roleId)
                 .andSoftDelete()
                 .findFirst(dataSource, this::mapRow);
+    }
+
+    @Override
+    public List<String> findRolesOnlyNameByUserId(UUID userId) {
+        String sql = """
+                    SELECT r.name 
+                    FROM user_roles ur
+                    INNER JOIN roles r ON ur.role_id = r.id
+                    WHERE ur.user_id = ?
+                      AND ur.deleted_at IS NULL
+                      AND r.deleted_at IS NULL
+                      AND r.is_active = TRUE
+                      AND (ur.expires_at IS NULL OR ur.expires_at > CURRENT_TIMESTAMP)
+                """;
+
+        List<String> roles = new ArrayList<>();
+
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setObject(1, userId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    roles.add(rs.getString("name"));
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Error fetching role names for userId: " + userId, e);
+        }
+
+        return roles;
+    }
+
+    @Override
+    public List<RoleEntity> findRolesByUserId(UUID userId) {
+        String sql = """
+                    SELECT r.id, r.name, r.slug, r.description, r.is_active, r.is_system, 
+                           r.version, r.created_at, r.updated_at, r.deleted_at
+                    FROM user_roles ur
+                    INNER JOIN roles r ON ur.role_id = r.id
+                    WHERE ur.user_id = ?
+                      AND ur.deleted_at IS NULL
+                      AND r.deleted_at IS NULL
+                      AND r.is_active = TRUE
+                      AND (ur.expires_at IS NULL OR ur.expires_at > CURRENT_TIMESTAMP)
+                """;
+
+        List<RoleEntity> roles = new ArrayList<>();
+
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setObject(1, userId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    RoleEntity role = new RoleEntity();
+                    role.setId(rs.getObject("id", UUID.class));
+                    role.setName(rs.getString("name"));
+                    role.setSlug(rs.getString("slug"));
+                    role.setDescription(rs.getString("description"));
+                    role.setIsActive(rs.getBoolean("is_active"));
+                    role.setIsSystem(rs.getBoolean("is_system"));
+                    role.setVersion(rs.getLong("version"));
+                    role.setCreatedAt(rs.getObject("created_at", OffsetDateTime.class));
+                    role.setUpdatedAt(rs.getObject("updated_at", OffsetDateTime.class));
+                    role.setDeletedAt(rs.getObject("deleted_at", OffsetDateTime.class));
+
+                    roles.add(role);
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Error fetching roles for userId: " + userId, e);
+        }
+
+        return roles;
     }
 }
