@@ -1,11 +1,14 @@
 package org.janus.help;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.restassured.http.ContentType;
 import jakarta.inject.Inject;
 import org.janus.modules.authentication.adapter.out.persistence.repository.RefreshTokenRepositoryJdbc;
 import org.janus.modules.authentication.adapter.out.persistence.repository.SessionRepositoryJdbc;
+import org.janus.modules.authentication.domain.entity.LoginAttemptEntity;
 import org.janus.modules.authentication.domain.entity.RefreshTokenEntity;
 import org.janus.modules.authentication.domain.entity.SessionEntity;
+import org.janus.modules.authentication.port.out.LoginAttemptRepository;
 import org.janus.modules.authorization.adapter.out.persistence.repository.RolePermissionRepositoryJdbc;
 import org.janus.modules.authorization.adapter.out.persistence.repository.RoleRepositoryJdbc;
 import org.janus.modules.authorization.adapter.out.persistence.repository.UserRoleRepositoryJdbc;
@@ -14,22 +17,26 @@ import org.janus.modules.authorization.domain.entity.RoleEntity;
 import org.janus.modules.authorization.domain.entity.RolePermissionEntity;
 import org.janus.modules.authorization.domain.entity.UserRoleEntity;
 import org.janus.modules.authorization.infrastructure.out.PermissionRepository;
+import org.janus.modules.identity.application.user.dto.CreateUserDTO;
 import org.janus.modules.identity.domain.entity.UserCredentialsEntity;
 import org.janus.modules.identity.domain.entity.UserEntity;
 import org.janus.modules.identity.ports.out.UserCredentialRepository;
 import org.janus.modules.identity.ports.out.UserRepository;
 import org.janus.modules.reliability.domain.entity.InboxEntity;
 import org.janus.modules.reliability.port.out.InboxRepository;
+import org.janus.shared.domain.api.TokenResponse;
 import org.janus.shared.domain.enums.InboxStatusEnum;
 import org.janus.shared.domain.enums.permission.PermissionModule;
 import org.janus.shared.domain.enums.permission.PermissionResource;
 import org.janus.shared.domain.enums.permission.PermissionRiskLevel;
 import org.janus.shared.domain.enums.rolePermission.PermissionEffectEnum;
-import org.junit.jupiter.api.BeforeEach;
 
 import java.security.SecureRandom;
 import java.time.OffsetDateTime;
 import java.util.UUID;
+
+import static io.restassured.RestAssured.given;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class BaseTest {
 
@@ -58,6 +65,9 @@ public class BaseTest {
     protected RolePermissionRepositoryJdbc rolePermissionRepository;
 
     @Inject
+    protected LoginAttemptRepository loginAttemptRepository;
+
+    @Inject
     protected PermissionRepository permissionRepository;
 
     @Inject
@@ -66,19 +76,75 @@ public class BaseTest {
     private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
     private static final SecureRandom RANDOM = new SecureRandom();
 
+    protected LoginAttemptEntity createSampleLoginAttempt(UUID userId, String email) {
+        LoginAttemptEntity loginAttempt = new LoginAttemptEntity();
 
-    @BeforeEach
-    void setup() {
-        this.sessionRepository.deleteAll();
-        this.rolePermissionRepository.deleteAll();
-        this.permissionRepository.deleteAll();
-        this.userRoleRepository.deleteAll();
-        this.roleRepository.deleteAll();
-        this.inboxRepository.deleteAll();
-        this.userCredentialRepository.deleteAll();
-        this.userRepository.deleteAll();
+        loginAttempt.setUserId(userId);
+        loginAttempt.setEmailAttempted(email);
+        loginAttempt.setIpAddress("192.168.1.1");
+        loginAttempt.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
+        loginAttempt.setSuccess(false);
+        loginAttempt.setFailureReason("any");
+
+        return loginAttempt;
     }
 
+    protected LoginAttemptEntity createSampleLoginAttempt(UUID userId, String email, Boolean success) {
+        LoginAttemptEntity loginAttempt = new LoginAttemptEntity();
+
+        loginAttempt.setUserId(userId);
+        loginAttempt.setEmailAttempted(email);
+        loginAttempt.setIpAddress("192.168.1.1");
+        loginAttempt.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
+        loginAttempt.setSuccess(success);
+        loginAttempt.setFailureReason("any");
+
+        return loginAttempt;
+    }
+
+    protected LoginAttemptEntity initLoginAttempt(UUID userId, String email) {
+        return createSampleLoginAttempt(userId, email);
+    }
+
+    protected LoginAttemptEntity initLoginAttempt(UUID userId, String email, Boolean success) {
+        return createSampleLoginAttempt(userId, email, success);
+    }
+
+    protected TokenResponse createUserHTTP() {
+        String chars = generateRandomString().toLowerCase();
+        final String url = "/v1/auth";
+
+        CreateUserDTO dto = new CreateUserDTO(
+                "user" + chars + "@gmail.com",
+                "username" + chars,
+                "fullname" + chars,
+                "12345678"
+        );
+
+        TokenResponse result = given()
+                .contentType(ContentType.JSON)
+                .header("Idempotency-Key", UUID.randomUUID())
+                .body(dto)
+                .when()
+                .post(url + "/register")
+                .then()
+                .statusCode(201)
+                .extract()
+                .jsonPath()
+                .getObject("data", TokenResponse.class);
+
+        assertThat(result.user().getId()).isNotNull();
+        assertThat(result.user().getUsername()).isEqualTo(dto.getUsername());
+        assertThat(result.user().getEmail()).isEqualTo(dto.getEmail());
+
+        assertThat(result.token()).isNotBlank();
+        assertThat(result.refreshToken()).isNotBlank();
+
+        assertThat(result.expToken()).isInTheFuture();
+        assertThat(result.expRefreshToken()).isInTheFuture();
+
+        return result;
+    }
 
     protected String generateRandomString(int length) {
         StringBuilder sb = new StringBuilder(length);
