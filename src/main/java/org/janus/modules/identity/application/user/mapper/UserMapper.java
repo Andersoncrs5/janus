@@ -1,20 +1,15 @@
 package org.janus.modules.identity.application.user.mapper;
 
-import jakarta.enterprise.context.ApplicationScoped;
-import org.janus.modules.identity.application.user.dto.CreateUserDTO;
-import org.janus.modules.identity.application.user.dto.UpdateUserDTO;
-import org.janus.modules.identity.application.user.dto.UserDTO;
+import org.janus.modules.identity.application.user.dto.request.CreateUserDTO;
+import org.janus.modules.identity.application.user.dto.request.UpdateUserDTO;
+import org.janus.modules.identity.application.user.dto.response.UserDTO;
 import org.janus.modules.identity.domain.entity.UserEntity;
-import org.mapstruct.BeanMapping;
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
-import org.mapstruct.MappingTarget;
-import org.mapstruct.NullValuePropertyMappingStrategy;
+import org.mapstruct.*;
 
 import java.util.List;
 
 @Mapper(
-        componentModel = "jakarta",
+        componentModel = "cdi",
         config = org.janus.configs.mapperStruct.CentralMapperConfig.class
 )
 public interface UserMapper {
@@ -37,7 +32,6 @@ public interface UserMapper {
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "email", ignore = true)
-    @Mapping(target = "username", ignore = true)
     @Mapping(target = "version", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
