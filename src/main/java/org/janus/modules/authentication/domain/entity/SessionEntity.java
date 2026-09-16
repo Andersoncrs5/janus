@@ -31,7 +31,8 @@ public class SessionEntity extends BaseEntity {
     }
 
     public void addTime(long minutes) {
-        this.expiresAt.plusMinutes(minutes);
+        OffsetDateTime base = (this.expiresAt != null) ? this.expiresAt : OffsetDateTime.now();
+        this.expiresAt = base.plusMinutes(minutes);
     }
 
     public boolean isActive() {
@@ -52,6 +53,10 @@ public class SessionEntity extends BaseEntity {
 
     public boolean isSameUser(UUID userId) {
         return this.userId != null && this.userId.equals(userId);
+    }
+
+    public void renew(long durationInMinutes) {
+        this.expiresAt = OffsetDateTime.now().plusMinutes(durationInMinutes);
     }
 
 }
