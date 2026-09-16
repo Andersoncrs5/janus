@@ -17,7 +17,7 @@ import org.janus.modules.authorization.domain.entity.RoleEntity;
 import org.janus.modules.authorization.domain.entity.RolePermissionEntity;
 import org.janus.modules.authorization.domain.entity.UserRoleEntity;
 import org.janus.modules.authorization.infrastructure.out.PermissionRepository;
-import org.janus.modules.identity.application.user.dto.CreateUserDTO;
+import org.janus.modules.identity.application.user.dto.request.CreateUserDTO;
 import org.janus.modules.identity.domain.entity.UserCredentialsEntity;
 import org.janus.modules.identity.domain.entity.UserEntity;
 import org.janus.modules.identity.ports.out.UserCredentialRepository;
