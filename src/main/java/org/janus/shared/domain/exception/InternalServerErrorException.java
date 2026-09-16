@@ -1,20 +1,23 @@
 package org.janus.shared.domain.exception;
 
 public class InternalServerErrorException extends RuntimeException {
-    private Throwable exception;
-    private int statusCode;
+    private final Throwable exception;
+    private final int statusCode;
 
     public InternalServerErrorException(String message) {
         super(message);
+        this.exception = null;
+        this.statusCode = 500;
     }
 
     public InternalServerErrorException(String message, Throwable exception) {
-        super(message);
+        super(message, exception);
         this.exception = exception;
+        this.statusCode = 500;
     }
 
     public InternalServerErrorException(String message, Throwable exception, int statusCode) {
-        super(message);
+        super(message, exception);
         this.exception = exception;
         this.statusCode = statusCode;
     }
