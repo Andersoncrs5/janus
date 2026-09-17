@@ -73,6 +73,10 @@ public class Result<T> {
         return new Result<>(null, List.of(value), 400);
     }
 
+    public static <T> Result<T> unauthorized(String value) {
+        return new Result<>(null, List.of(value), 401);
+    }
+
     public static <T> Result<T> success(T value) {
         return new Result<>(value, List.of(), 200);
     }
