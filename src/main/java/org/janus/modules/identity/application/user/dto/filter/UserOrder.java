@@ -26,9 +26,30 @@ public enum UserOrder {
         }
 
         return Arrays.stream(values())
-                .filter(order -> order.column.equalsIgnoreCase(column) || order.name().equalsIgnoreCase(column))
+                .filter(order ->
+                        order.column.equalsIgnoreCase(column)
+                                || order.name().equalsIgnoreCase(column)
+                )
                 .findFirst()
                 .orElse(CREATED_AT);
+    }
+
+    public static UserOrder fromColumnStrict(String column) {
+        if (column == null || column.isBlank()) {
+            return CREATED_AT;
+        }
+
+        return Arrays.stream(values())
+                .filter(order ->
+                        order.column.equalsIgnoreCase(column)
+                                || order.name().equalsIgnoreCase(column)
+                )
+                .findFirst()
+                .orElseThrow(() ->
+                        new IllegalArgumentException(
+                                "Unknown user order: " + column
+                        )
+                );
     }
 
     public String getColumn() {
