@@ -2,7 +2,10 @@ package org.janus.modules.identity.infra.repository;
 
 import io.quarkus.test.junit.QuarkusTest;
 import org.janus.help.BaseTest;
+import org.janus.modules.identity.application.user.dto.filter.UserFilterDTO;
+import org.janus.modules.identity.application.user.dto.filter.UserOrder;
 import org.janus.modules.identity.domain.entity.UserEntity;
+import org.janus.shared.domain.page.Page;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
@@ -16,6 +19,58 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @QuarkusTest
 public class UserRepositoryJdbcTest extends BaseTest {
+
+    @Nested
+    class FindAll {
+
+        @Test
+        void shouldReturnPagedUsersWithFilters() {
+            UserEntity user1 = userRepository.insert(UserEntity.builder()
+                    .email("filter.test1@janus.org")
+                    .username("filteruser1")
+                    .fullName("Alice Filter")
+                    .isActive(true)
+                    .isEmailVerified(true)
+                    .build());
+
+            UserEntity user2 = userRepository.insert(UserEntity.builder()
+                    .email("filter.test2@janus.org")
+                    .username("filteruser2")
+                    .fullName("Bob Filter")
+                    .isActive(false)
+                    .isEmailVerified(false)
+                    .build());
+
+            UserFilterDTO filter = UserFilterDTO.builder()
+                    .email("filter.test1@janus.org")
+                    .isActive(true)
+                    .orders(List.of(UserOrder.CREATED_AT))
+                    .page(0)
+                    .size(10)
+                    .build();
+
+            Page<UserEntity> result = userRepository.findAll(filter);
+
+            assertThat(result).isNotNull();
+            assertThat(result.getContent()).extracting(UserEntity::getId).contains(user1.getId());
+            assertThat(result.getContent()).extracting(UserEntity::getId).doesNotContain(user2.getId());
+        }
+
+        @Test
+        void shouldReturnEmptyPageWhenNoUsersMatchFilter() {
+            UserFilterDTO filter = UserFilterDTO.builder()
+                    .username("nonexistent_filter_user")
+                    .page(0)
+                    .size(10)
+                    .build();
+
+            Page<UserEntity> result = userRepository.findAll(filter);
+
+            assertThat(result).isNotNull();
+            assertThat(result.getContent()).isEmpty();
+            assertThat(result.getTotalElements()).isEqualTo(0);
+        }
+    }
 
     @Nested
     class Insert {

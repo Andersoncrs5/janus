@@ -1,8 +1,10 @@
 package org.janus.modules.identity.adapter.out.persistence.repository;
 
 import jakarta.enterprise.context.ApplicationScoped;
+import org.janus.modules.identity.application.user.dto.filter.UserFilterDTO;
 import org.janus.modules.identity.domain.entity.UserEntity;
 import org.janus.modules.identity.ports.out.UserRepository;
+import org.janus.shared.domain.page.Page;
 import org.janus.shared.domain.queries.Query;
 import org.janus.shared.infrastructure.persistence.jdbc.GenericJdbcRepository;
 
@@ -17,6 +19,78 @@ import java.util.UUID;
 public class UserRepositoryJdbc
         extends GenericJdbcRepository<UserEntity>
         implements UserRepository {
+
+    @Override
+    public Page<UserEntity> findAll(UserFilterDTO filter) {
+        Query.Select select = new Query.Select(getTableName());
+
+        if (filter.getId() != null) {
+            select.andEqual("id", filter.getId());
+        }
+
+        if (filter.getEmail() != null) {
+            select.andEqual("email", filter.getEmail());
+        }
+
+        if (filter.getUsername() != null) {
+            select.andEqual("username", filter.getUsername());
+        }
+
+        if (filter.getFullName() != null) {
+            select.andEqual("full_name", filter.getFullName());
+        }
+
+        if (filter.getEmailVerified() != null) {
+            select.andEqual("is_email_verified", filter.getEmailVerified());
+        }
+
+        if (filter.getActive() != null) {
+            select.andEqual("is_active", filter.getActive());
+        }
+
+        if (filter.getLastLoginAtFrom() != null) {
+            select.andGreaterThanOrEqual("last_login_at", filter.getLastLoginAtFrom());
+        }
+
+        if (filter.getLastLoginAtTo() != null) {
+            select.andLessThanOrEqual("last_login_at", filter.getLastLoginAtTo());
+        }
+
+        if (filter.getCreatedAtMin() != null) {
+            select.andGreaterThanOrEqual("created_at", filter.getCreatedAtMin());
+        }
+
+        if (filter.getCreatedAtMax() != null) {
+            select.andLessThanOrEqual("created_at", filter.getCreatedAtMax());
+        }
+
+        if (filter.getUpdatedAtMin() != null) {
+            select.andGreaterThanOrEqual("updated_at", filter.getUpdatedAtMin());
+        }
+
+        if (filter.getUpdatedAtMax() != null) {
+            select.andLessThanOrEqual("updated_at", filter.getUpdatedAtMax());
+        }
+
+        select.andSoftDelete();
+
+        long totalElements = select.count(dataSource);
+
+        if (totalElements == 0) {
+            return Page.empty(filter.getPage(), filter.getSize());
+        }
+
+        if (filter.getOrders() != null && !filter.getOrders().isEmpty()) {
+            filter.getOrders().forEach(order -> select.orderBy(order.getColumn(), order.getDirection()));
+        }
+
+        select.limit(filter.getSize());
+        select.offset(filter.getOffset());
+
+        List<UserEntity> content = select.findAll(dataSource, this::mapRow);
+
+        return Page.of(content, totalElements, filter.getPage(), filter.getSize());
+    }
 
     @Override
     protected String getTableName() {
@@ -86,6 +160,7 @@ public class UserRepositoryJdbc
         }
         return entity;
     }
+
 
     @Override
     public Optional<UserEntity> findByEmail(String email) {
