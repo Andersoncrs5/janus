@@ -17,6 +17,7 @@ import org.janus.modules.authorization.domain.entity.RoleEntity;
 import org.janus.modules.authorization.domain.entity.RolePermissionEntity;
 import org.janus.modules.authorization.domain.entity.UserRoleEntity;
 import org.janus.modules.authorization.infrastructure.out.PermissionRepository;
+import org.janus.modules.identity.application.auth.dto.LoginUserDTO;
 import org.janus.modules.identity.application.user.dto.request.CreateUserDTO;
 import org.janus.modules.identity.domain.entity.UserCredentialsEntity;
 import org.janus.modules.identity.domain.entity.UserEntity;
@@ -108,6 +109,38 @@ public class BaseTest {
 
     protected LoginAttemptEntity initLoginAttempt(UUID userId, String email, Boolean success) {
         return createSampleLoginAttempt(userId, email, success);
+    }
+
+    protected TokenResponse loginMasterHTTP() {
+        final String url = "/v1/auth";
+
+        LoginUserDTO dto = new LoginUserDTO(
+                "admin@gmail.com",
+                "MasterPassword123!"
+        );
+
+        TokenResponse result = given()
+                .contentType(ContentType.JSON)
+                .header("Idempotency-Key", UUID.randomUUID())
+                .body(dto)
+                .when()
+                .post(url + "/login")
+                .then()
+                .statusCode(200)
+                .extract()
+                .jsonPath()
+                .getObject("data", TokenResponse.class);
+
+        assertThat(result.user().getId()).isNotNull();
+        assertThat(result.user().getEmail()).isEqualTo(dto.email());
+
+        assertThat(result.token()).isNotBlank();
+        assertThat(result.refreshToken()).isNotBlank();
+
+        assertThat(result.expToken()).isInTheFuture();
+        assertThat(result.expRefreshToken()).isInTheFuture();
+
+        return result;
     }
 
     protected TokenResponse createUserHTTP() {
