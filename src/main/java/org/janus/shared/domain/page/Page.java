@@ -1,11 +1,8 @@
 package org.janus.shared.domain.page;
 
-import lombok.Getter;
-
 import java.util.Collections;
 import java.util.List;
 
-@Getter
 public class Page<T> {
 
     private List<T> content;
@@ -50,5 +47,38 @@ public class Page<T> {
 
     public boolean hasPrevious() {
         return page > 0;
+    }
+
+    public <R> Page<R> map(java.util.function.Function<T, R> mapper) {
+        List<R> converted = this.content.stream().map(mapper).toList();
+        return new Page<>(converted, this.totalElements, this.page, this.size);
+    }
+
+    public List<T> getContent() {
+        return content;
+    }
+
+    public long getTotalElements() {
+        return totalElements;
+    }
+
+    public int getPage() {
+        return page;
+    }
+
+    public int getSize() {
+        return size;
+    }
+
+    public int getTotalPages() {
+        return totalPages;
+    }
+
+    public boolean isFirst() {
+        return first;
+    }
+
+    public boolean isLast() {
+        return last;
     }
 }
