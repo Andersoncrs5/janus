@@ -1,6 +1,5 @@
 package org.janus.shared.infrastructure.persistence.tx;
 
-
 import jakarta.annotation.Priority;
 import jakarta.inject.Inject;
 import jakarta.interceptor.AroundInvoke;
@@ -20,42 +19,64 @@ public class ResultTransactionInterceptor {
 
     @AroundInvoke
     public Object invoke(InvocationContext context) throws Exception {
-        boolean isNewTransaction = false;
 
-        if (transactionManager.getStatus() == Status.STATUS_NO_TRANSACTION) {
+        boolean isNewTransaction =
+                transactionManager.getStatus() == Status.STATUS_NO_TRANSACTION;
+
+        if (isNewTransaction) {
             transactionManager.begin();
-            isNewTransaction = true;
         }
 
         try {
             Object returned = context.proceed();
 
-            if (returned instanceof Result<?> result && !result.isSuccess()) {
-                handleRollback(isNewTransaction);
-                return returned;
-            }
-
             if (isNewTransaction) {
+
+                if (returned instanceof Result<?> result
+                        && !result.isSuccess()) {
+
+                    transactionManager.rollback();
+                    return returned;
+                }
+
                 transactionManager.commit();
             }
 
             return returned;
 
         } catch (Exception ex) {
-            handleRollback(isNewTransaction);
+
+            handleException(isNewTransaction);
+
             throw ex;
         }
     }
 
-    private void handleRollback(boolean isNewTransaction) throws Exception {
+    private void handleException(boolean isNewTransaction)
+            throws Exception {
+
+        int status = transactionManager.getStatus();
+
         if (isNewTransaction) {
-            if (transactionManager.getStatus() != Status.STATUS_NO_TRANSACTION) {
+
+            if (status != Status.STATUS_NO_TRANSACTION
+                    && status != Status.STATUS_COMMITTED
+                    && status != Status.STATUS_ROLLEDBACK) {
+
                 transactionManager.rollback();
             }
-        } else {
-            if (transactionManager.getStatus() == Status.STATUS_ACTIVE) {
-                transactionManager.setRollbackOnly();
-            }
+
+            return;
+        }
+
+        /*
+         * Se já existe uma transação externa, uma exception
+         * deve contaminar essa transação e obrigá-la a rollback.
+         */
+        if (status == Status.STATUS_ACTIVE
+                || status == Status.STATUS_MARKED_ROLLBACK) {
+
+            transactionManager.setRollbackOnly();
         }
     }
 }
