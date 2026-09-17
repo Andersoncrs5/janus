@@ -2,6 +2,7 @@ package org.janus.shared.domain.queries;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import lombok.Getter;
+import org.janus.shared.domain.exception.DataIntegrityViolationException;
 
 import javax.sql.DataSource;
 import java.sql.*;
@@ -238,7 +239,7 @@ public class Query {
                 }
                 return statement.executeUpdate() > 0;
             } catch (SQLException e) {
-                throw new IllegalStateException("Error executing UPDATE for table: " + table, e);
+                throw handleSqlException(e);
             }
         }
 
@@ -251,8 +252,15 @@ public class Query {
                 }
                 return statement.executeUpdate();
             } catch (SQLException e) {
-                throw new IllegalStateException("Error executing UPDATE for table: " + table, e);
+                throw handleSqlException(e);
             }
+        }
+
+        private RuntimeException handleSqlException(SQLException e) {
+            if (e.getSQLState() != null && e.getSQLState().startsWith("23")) {
+                return new DataIntegrityViolationException(e.getMessage(), e);
+            }
+            return new RuntimeException("Error executing UPDATE for table: " + table, e);
         }
     }
 
