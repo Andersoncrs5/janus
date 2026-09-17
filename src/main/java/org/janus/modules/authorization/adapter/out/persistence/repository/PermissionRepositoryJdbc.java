@@ -15,6 +15,7 @@ import org.janus.shared.infrastructure.persistence.jdbc.GenericJdbcRepository;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -23,6 +24,94 @@ import java.util.UUID;
 public class PermissionRepositoryJdbc
         extends GenericJdbcRepository<PermissionEntity>
         implements PermissionRepository {
+
+    @Override
+    public List<String> findPermissionSlugsByRoleName(String roleName) {
+        if (roleName == null || roleName.isBlank()) {
+            return List.of();
+        }
+        return findPermissionSlugsByRoleNames(List.of(roleName));
+    }
+
+    @Override
+    public List<String> findPermissionSlugsByRoleNames(List<String> roleNames) {
+        if (roleNames == null || roleNames.isEmpty()) {
+            return List.of();
+        }
+
+        String sql = """
+                SELECT DISTINCT p.slug
+                FROM permissions p
+                INNER JOIN role_permissions rp ON p.id = rp.permission_id
+                INNER JOIN roles r ON r.id = rp.role_id
+                WHERE r.name = ANY(?)
+                  AND r.is_active = TRUE
+                  AND r.deleted_at IS NULL
+                  AND p.is_active = TRUE
+                  AND p.deleted_at IS NULL
+                  AND rp.deleted_at IS NULL
+                  AND (rp.expires_at IS NULL OR rp.expires_at > CURRENT_TIMESTAMP)
+                """;
+
+        try (var conn = dataSource.getConnection();
+             var stmt = conn.prepareStatement(sql)) {
+
+            java.sql.Array pgArray = conn.createArrayOf("varchar", roleNames.toArray());
+            stmt.setArray(1, pgArray);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                List<String> permissions = new ArrayList<>();
+                while (rs.next()) {
+                    permissions.add(rs.getString(1));
+                }
+                return permissions;
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Erro ao buscar slugs de permissões por nomes de roles", e);
+        }
+    }
+
+    @Override
+    public List<String> findPermissionSlugsByRoleId(UUID roleId) {
+        if (roleId == null) {
+            return List.of();
+        }
+        return findPermissionSlugsByRoleIds(List.of(roleId));
+    }
+
+    @Override
+    public List<String> findPermissionSlugsByRoleIds(List<UUID> roleIds) {
+        if (roleIds == null || roleIds.isEmpty()) {
+            return List.of();
+        }
+
+        String sql = """
+                SELECT DISTINCT p.slug
+                FROM permissions p
+                INNER JOIN role_permissions rp ON p.id = rp.permission_id
+                WHERE rp.role_id = ANY(?)
+                  AND p.deleted_at IS NULL
+                  AND rp.deleted_at IS NULL
+                  AND (rp.expires_at IS NULL OR rp.expires_at > CURRENT_TIMESTAMP)
+                """;
+
+        try (var conn = dataSource.getConnection();
+             var stmt = conn.prepareStatement(sql)) {
+
+            java.sql.Array pgArray = conn.createArrayOf("uuid", roleIds.toArray());
+            stmt.setArray(1, pgArray);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                List<String> permissions = new ArrayList<>();
+                while (rs.next()) {
+                    permissions.add(rs.getString(1));
+                }
+                return permissions;
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Erro ao buscar permissões por roles", e);
+        }
+    }
 
     @Override
     public Page<PermissionEntity> findAll(PermissionFilterDTO filter) {

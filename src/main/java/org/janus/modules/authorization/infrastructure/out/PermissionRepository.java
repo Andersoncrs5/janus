@@ -5,6 +5,7 @@ import org.janus.modules.authorization.domain.entity.PermissionEntity;
 import org.janus.shared.domain.base.repository.GenericRepository;
 import org.janus.shared.domain.page.Page;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -16,4 +17,12 @@ public interface PermissionRepository extends GenericRepository<PermissionEntity
     boolean existsByName(String name);
 
     boolean existsBySlug(String slug);
+
+    List<String> findPermissionSlugsByRoleIds(List<UUID> roleIds);
+
+    List<String> findPermissionSlugsByRoleId(UUID roleId);
+
+    List<String> findPermissionSlugsByRoleName(String roleName);
+
+    List<String> findPermissionSlugsByRoleNames(List<String> roleNames);
 }
