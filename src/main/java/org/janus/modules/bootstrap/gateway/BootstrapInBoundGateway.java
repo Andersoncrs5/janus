@@ -3,6 +3,7 @@ package org.janus.modules.bootstrap.gateway;
 import jakarta.enterprise.context.Dependent;
 import org.janus.modules.authorization.gateway.permission.PermissionOutboundGateway;
 import org.janus.modules.authorization.gateway.role.RoleOutboundGateway;
+import org.janus.modules.authorization.gateway.rolePermission.RolePermissionOutboundGateway;
 import org.janus.modules.authorization.gateway.userRole.UserRoleOutBoundGateway;
 import org.janus.modules.authorization.infrastructure.in.role.ICreateRoleUseCase;
 import org.janus.modules.authorization.infrastructure.in.role.IExistsRoleByNameUseCase;
@@ -19,6 +20,7 @@ public record BootstrapInBoundGateway(
 
         UserRoleOutBoundGateway userRoleOutBoundGateway,
 
-        PermissionOutboundGateway permissionOutboundGateway
+        PermissionOutboundGateway permissionOutboundGateway,
+        RolePermissionOutboundGateway rolePermissionOutboundGateway
 ) {
 }
