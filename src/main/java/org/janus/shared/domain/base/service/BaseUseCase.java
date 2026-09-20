@@ -10,6 +10,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
 
+import static com.fasterxml.jackson.databind.util.ClassUtil.getRootCause;
+
 public abstract class BaseUseCase<T> {
 
     protected Map<String, Supplier<Result<T>>> getConstraintHandlers() {
@@ -22,6 +24,17 @@ public abstract class BaseUseCase<T> {
         } catch (DataIntegrityViolationException e) {
             return handleConstraintException(e);
         } catch (Exception e) {
+            Throwable rootCause = getRootCause(e);
+            String message = rootCause != null ? rootCause.getMessage() : e.getMessage();
+
+            if (message != null) {
+                for (Map.Entry<String, Supplier<Result<T>>> entry : getConstraintHandlers().entrySet()) {
+                    if (message.contains(entry.getKey())) {
+                        return entry.getValue().get();
+                    }
+                }
+            }
+
             throw new InternalServerErrorException(e.getMessage(), e);
         }
     }
