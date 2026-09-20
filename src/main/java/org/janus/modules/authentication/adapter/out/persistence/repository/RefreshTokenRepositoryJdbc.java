@@ -112,7 +112,7 @@ public class RefreshTokenRepositoryJdbc
                 .set("is_revoked", true)
                 .setExpression("updated_at = CURRENT_TIMESTAMP")
                 .where("id", id)
-                .and("is_revoked", false)
+                .and("is_revoked = ?", false)
                 .andSoftDelete()
                 .executeCount(dataSource);
     }
@@ -123,7 +123,7 @@ public class RefreshTokenRepositoryJdbc
                 .set("is_revoked", true)
                 .setExpression("updated_at = CURRENT_TIMESTAMP")
                 .where("session_id", sessionId)
-                .and("is_revoked", false)
+                .and("is_revoked = ?", false)
                 .andSoftDelete()
                 .executeCount(dataSource);
     }
@@ -134,7 +134,7 @@ public class RefreshTokenRepositoryJdbc
                 .set("is_revoked", true)
                 .setExpression("updated_at = CURRENT_TIMESTAMP")
                 .where("user_id", userId)
-                .and("is_revoked", false)
+                .and("is_revoked = ?", false)
                 .andSoftDelete()
                 .executeCount(dataSource);
     }
@@ -148,8 +148,8 @@ public class RefreshTokenRepositoryJdbc
     public boolean existsActiveBySessionId(UUID sessionId) {
         return new Query.Exists(getTableName())
                 .where("session_id", sessionId)
-                .and("is_revoked", false)
-                .and("is_used", false)
+                .and("is_revoked = ?", false)
+                .and("is_used = ?", false)
                 .and("expires_at > CURRENT_TIMESTAMP")
                 .andSoftDelete()
                 .execute(dataSource);
