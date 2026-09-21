@@ -12,6 +12,8 @@ import org.janus.modules.authentication.port.out.LoginAttemptRepository;
 import org.janus.modules.authorization.adapter.out.persistence.repository.RolePermissionRepositoryJdbc;
 import org.janus.modules.authorization.adapter.out.persistence.repository.RoleRepositoryJdbc;
 import org.janus.modules.authorization.adapter.out.persistence.repository.UserRoleRepositoryJdbc;
+import org.janus.modules.authorization.application.dto.role.request.CreateRoleDTO;
+import org.janus.modules.authorization.application.dto.role.response.RoleDTO;
 import org.janus.modules.authorization.domain.entity.PermissionEntity;
 import org.janus.modules.authorization.domain.entity.RoleEntity;
 import org.janus.modules.authorization.domain.entity.RolePermissionEntity;
@@ -139,6 +141,37 @@ public class BaseTest {
 
         assertThat(result.expToken()).isInTheFuture();
         assertThat(result.expRefreshToken()).isInTheFuture();
+
+        return result;
+    }
+
+    protected RoleDTO createRoleHTTTP(TokenResponse masterToken) {
+        var key = generateRandomString();
+        final String url = "/v1/role";
+
+        CreateRoleDTO dto = new CreateRoleDTO(
+                "role name " + key,
+                "desc " + key,
+                "role-name-" + key.toLowerCase()
+        );
+
+        RoleDTO result = given()
+                .contentType(ContentType.JSON)
+                .header("Idempotency-Key", UUID.randomUUID().toString())
+                .header("Authorization", "Bearer " + masterToken.token())
+                .body(dto)
+                .when()
+                .post(url)
+                .then()
+                .statusCode(201)
+                .extract()
+                .jsonPath()
+                .getObject("data", RoleDTO.class);
+
+        assertThat(result.getId()).isNotNull();
+        assertThat(result.getName()).isEqualTo(dto.name());
+        assertThat(result.getSlug()).isEqualTo(dto.slug());
+        assertThat(result.getDescription()).isEqualTo(dto.description());
 
         return result;
     }
