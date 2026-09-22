@@ -180,6 +180,16 @@ janus:
         is-system: true
         is-active: true
 
+      - name: "Delete Permission"
+        slug: "permissions:delete"
+        description: "To Delete permission in API"
+        module: "authorization"
+        resource: "permission"
+        action: "delete"
+        risk-level: "CRITICAL"
+        is-system: true
+        is-active: true
+
       - name: "Criar Permissão"
         slug: "permissions:create"
         description: "Registrar novas permissões no catálogo"
