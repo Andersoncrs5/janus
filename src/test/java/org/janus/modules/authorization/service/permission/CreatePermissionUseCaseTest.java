@@ -59,8 +59,8 @@ class CreatePermissionUseCaseTest {
         Result<PermissionEntity> result = useCase.execute(null, createdBy);
 
         assertThat(result.isFailure()).isTrue();
-        assertThat(result.getMessage().isPresent()).isTrue();
-        assertThat(result.getMessage().get()).isEqualTo("Permission data must be provided");
+        assertThat(result.getStatus()).isEqualTo(400);
+        assertThat(result.getMessage()).contains("Permission data must be provided");
         verifyNoInteractions(mapper, repository);
     }
 
@@ -113,10 +113,28 @@ class CreatePermissionUseCaseTest {
 
         assertThat(result.isFailure()).isTrue();
         assertThat(result.getStatus()).isEqualTo(409);
-        assertThat(result.getMessage().isPresent()).isTrue();
-        assertThat(result.getMessage().get()).isEqualTo("Permission already exists with slug: '" + dto.slug() + "'");
+        assertThat(result.getMessage()).contains("Permission already exists with this slug");
 
         verify(repository, times(1)).insert(mappedEntity);
+    }
+
+    @Test
+    @DisplayName("Should return 409 conflict when active slug partial index constraint is violated")
+    void shouldReturnConflictWhenActiveSlugAlreadyExists() {
+        UUID createdBy = UUID.randomUUID();
+        CreatePermissionDTO dto = createSampleDto();
+        PermissionEntity mappedEntity = new PermissionEntity();
+
+        when(mapper.toEntity(dto)).thenReturn(mappedEntity);
+        when(repository.insert(mappedEntity)).thenThrow(
+                new DataIntegrityViolationException("duplicate key value violates unique constraint \"uk_permissions_slug_active\"")
+        );
+
+        Result<PermissionEntity> result = useCase.execute(dto, createdBy);
+
+        assertThat(result.isFailure()).isTrue();
+        assertThat(result.getStatus()).isEqualTo(409);
+        assertThat(result.getMessage()).contains("Permission already exists with this slug");
     }
 
     @Test
@@ -135,10 +153,47 @@ class CreatePermissionUseCaseTest {
 
         assertThat(result.isFailure()).isTrue();
         assertThat(result.getStatus()).isEqualTo(409);
-        assertThat(result.getMessage().isPresent()).isTrue();
-        assertThat(result.getMessage().get()).isEqualTo("Permission already exists with name: '" + dto.name() + "'");
+        assertThat(result.getMessage()).contains("Permission already exists with this name");
 
         verify(repository, times(1)).insert(mappedEntity);
+    }
+
+    @Test
+    @DisplayName("Should return 409 conflict when active name partial index constraint is violated")
+    void shouldReturnConflictWhenActiveNameAlreadyExists() {
+        UUID createdBy = UUID.randomUUID();
+        CreatePermissionDTO dto = createSampleDto();
+        PermissionEntity mappedEntity = new PermissionEntity();
+
+        when(mapper.toEntity(dto)).thenReturn(mappedEntity);
+        when(repository.insert(mappedEntity)).thenThrow(
+                new DataIntegrityViolationException("duplicate key value violates unique constraint \"uk_permissions_name_active\"")
+        );
+
+        Result<PermissionEntity> result = useCase.execute(dto, createdBy);
+
+        assertThat(result.isFailure()).isTrue();
+        assertThat(result.getStatus()).isEqualTo(409);
+        assertThat(result.getMessage()).contains("Permission already exists with this name");
+    }
+
+    @Test
+    @DisplayName("Should return 409 conflict when module, resource and action combination already exists")
+    void shouldReturnConflictWhenModuleResourceActionAlreadyExists() {
+        UUID createdBy = UUID.randomUUID();
+        CreatePermissionDTO dto = createSampleDto();
+        PermissionEntity mappedEntity = new PermissionEntity();
+
+        when(mapper.toEntity(dto)).thenReturn(mappedEntity);
+        when(repository.insert(mappedEntity)).thenThrow(
+                new DataIntegrityViolationException("duplicate key value violates unique constraint \"uk_permissions_module_resource_action_active\"")
+        );
+
+        Result<PermissionEntity> result = useCase.execute(dto, createdBy);
+
+        assertThat(result.isFailure()).isTrue();
+        assertThat(result.getStatus()).isEqualTo(409);
+        assertThat(result.getMessage()).contains("Permission already exists for this module, resource, and action combination");
     }
 
     @Test
@@ -156,10 +211,103 @@ class CreatePermissionUseCaseTest {
         Result<PermissionEntity> result = useCase.execute(dto, createdBy);
 
         assertThat(result.isFailure()).isTrue();
-        assertThat(result.getMessage().isPresent()).isTrue();
-        assertThat(result.getMessage().get()).isEqualTo("Permission slug cannot be empty or blank");
+        assertThat(result.getStatus()).isEqualTo(400);
+        assertThat(result.getMessage()).contains("Permission slug cannot be empty or blank");
+    }
 
-        verify(repository, times(1)).insert(mappedEntity);
+    @Test
+    @DisplayName("Should return bad request when name check constraint fails")
+    void shouldReturnBadRequestWhenNameCheckConstraintFails() {
+        UUID createdBy = UUID.randomUUID();
+        CreatePermissionDTO dto = createSampleDto();
+        PermissionEntity mappedEntity = new PermissionEntity();
+
+        when(mapper.toEntity(dto)).thenReturn(mappedEntity);
+        when(repository.insert(mappedEntity)).thenThrow(
+                new DataIntegrityViolationException("violates check constraint \"ck_permissions_name_not_empty\"")
+        );
+
+        Result<PermissionEntity> result = useCase.execute(dto, createdBy);
+
+        assertThat(result.isFailure()).isTrue();
+        assertThat(result.getStatus()).isEqualTo(400);
+        assertThat(result.getMessage()).contains("Permission name cannot be empty or blank");
+    }
+
+    @Test
+    @DisplayName("Should return bad request when action check constraint fails")
+    void shouldReturnBadRequestWhenActionCheckConstraintFails() {
+        UUID createdBy = UUID.randomUUID();
+        CreatePermissionDTO dto = createSampleDto();
+        PermissionEntity mappedEntity = new PermissionEntity();
+
+        when(mapper.toEntity(dto)).thenReturn(mappedEntity);
+        when(repository.insert(mappedEntity)).thenThrow(
+                new DataIntegrityViolationException("violates check constraint \"ck_permissions_action_not_empty\"")
+        );
+
+        Result<PermissionEntity> result = useCase.execute(dto, createdBy);
+
+        assertThat(result.isFailure()).isTrue();
+        assertThat(result.getStatus()).isEqualTo(400);
+        assertThat(result.getMessage()).contains("Permission action cannot be empty or blank");
+    }
+
+    @Test
+    @DisplayName("Should return bad request when slug format check constraint fails")
+    void shouldReturnBadRequestWhenSlugFormatConstraintFails() {
+        UUID createdBy = UUID.randomUUID();
+        CreatePermissionDTO dto = createSampleDto();
+        PermissionEntity mappedEntity = new PermissionEntity();
+
+        when(mapper.toEntity(dto)).thenReturn(mappedEntity);
+        when(repository.insert(mappedEntity)).thenThrow(
+                new DataIntegrityViolationException("violates check constraint \"ck_permissions_slug_format\"")
+        );
+
+        Result<PermissionEntity> result = useCase.execute(dto, createdBy);
+
+        assertThat(result.isFailure()).isTrue();
+        assertThat(result.getStatus()).isEqualTo(400);
+        assertThat(result.getMessage()).contains("Permission slug contains invalid format");
+    }
+
+    @Test
+    @DisplayName("Should return bad request when action format check constraint fails")
+    void shouldReturnBadRequestWhenActionFormatConstraintFails() {
+        UUID createdBy = UUID.randomUUID();
+        CreatePermissionDTO dto = createSampleDto();
+        PermissionEntity mappedEntity = new PermissionEntity();
+
+        when(mapper.toEntity(dto)).thenReturn(mappedEntity);
+        when(repository.insert(mappedEntity)).thenThrow(
+                new DataIntegrityViolationException("violates check constraint \"ck_permissions_action_format\"")
+        );
+
+        Result<PermissionEntity> result = useCase.execute(dto, createdBy);
+
+        assertThat(result.isFailure()).isTrue();
+        assertThat(result.getStatus()).isEqualTo(400);
+        assertThat(result.getMessage()).contains("Permission action contains invalid format");
+    }
+
+    @Test
+    @DisplayName("Should return bad request when metadata is not a JSON object")
+    void shouldReturnBadRequestWhenMetadataIsNotObject() {
+        UUID createdBy = UUID.randomUUID();
+        CreatePermissionDTO dto = createSampleDto();
+        PermissionEntity mappedEntity = new PermissionEntity();
+
+        when(mapper.toEntity(dto)).thenReturn(mappedEntity);
+        when(repository.insert(mappedEntity)).thenThrow(
+                new DataIntegrityViolationException("violates check constraint \"ck_permissions_metadata_is_object\"")
+        );
+
+        Result<PermissionEntity> result = useCase.execute(dto, createdBy);
+
+        assertThat(result.isFailure()).isTrue();
+        assertThat(result.getStatus()).isEqualTo(400);
+        assertThat(result.getMessage()).contains("Metadata must be a valid JSON object");
     }
 
     @Test
@@ -177,10 +325,8 @@ class CreatePermissionUseCaseTest {
         Result<PermissionEntity> result = useCase.execute(dto, createdBy);
 
         assertThat(result.isFailure()).isTrue();
-        assertThat(result.getMessage().isPresent()).isTrue();
-        assertThat(result.getMessage().get()).isEqualTo("User specified in 'createdBy' does not exist");
-
-        verify(repository, times(1)).insert(mappedEntity);
+        assertThat(result.getStatus()).isEqualTo(400);
+        assertThat(result.getMessage()).contains("User specified in 'createdBy' does not exist");
     }
 
     @Test
