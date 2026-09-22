@@ -241,12 +241,34 @@ CREATE TABLE permissions (
     CONSTRAINT ck_permissions_slug_not_empty CHECK (TRIM(slug) <> ''),
     CONSTRAINT ck_permissions_version CHECK (version >= 0),
 
+    CONSTRAINT ck_permissions_slug_format CHECK (slug ~ '^[a-z0-9_:-]+$'),
+    CONSTRAINT ck_permissions_action_format CHECK (action ~ '^[a-z0-9_-]+$'),
+
+    CONSTRAINT ck_permissions_system_not_deletable CHECK (
+        NOT (is_system = TRUE AND deleted_at IS NOT NULL)
+    ),
+
+    CONSTRAINT ck_permissions_metadata_is_object CHECK (
+        metadata IS NULL OR jsonb_typeof(metadata) = 'object'
+    ),
+
     CONSTRAINT fk_permissions_created_by
             FOREIGN KEY (created_by)
             REFERENCES users(id)
             ON DELETE SET NULL
 );
 
+CREATE UNIQUE INDEX uk_permissions_slug_active
+    ON permissions (slug)
+    WHERE deleted_at IS NULL;
+
+CREATE UNIQUE INDEX uk_permissions_name_active
+    ON permissions (name)
+    WHERE deleted_at IS NULL;
+
+CREATE UNIQUE INDEX uk_permissions_module_resource_action_active
+    ON permissions (module, resource, action)
+    WHERE deleted_at IS NULL;
 
 CREATE INDEX idx_permissions_module ON permissions (module);
 CREATE INDEX idx_permissions_resource ON permissions (resource);
