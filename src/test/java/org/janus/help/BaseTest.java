@@ -12,6 +12,8 @@ import org.janus.modules.authentication.port.out.LoginAttemptRepository;
 import org.janus.modules.authorization.adapter.out.persistence.repository.RolePermissionRepositoryJdbc;
 import org.janus.modules.authorization.adapter.out.persistence.repository.RoleRepositoryJdbc;
 import org.janus.modules.authorization.adapter.out.persistence.repository.UserRoleRepositoryJdbc;
+import org.janus.modules.authorization.application.dto.permission.request.CreatePermissionDTO;
+import org.janus.modules.authorization.application.dto.permission.response.PermissionDTO;
 import org.janus.modules.authorization.application.dto.role.request.CreateRoleDTO;
 import org.janus.modules.authorization.application.dto.role.response.RoleDTO;
 import org.janus.modules.authorization.domain.entity.PermissionEntity;
@@ -264,6 +266,52 @@ public class BaseTest {
 
     protected PermissionEntity initPermission(UUID createdBy) {
         return permissionRepository.insert(createSamplePermissionEntity(createdBy));
+    }
+
+    protected PermissionDTO createPermissionHTTP(TokenResponse masterToken) {
+        final String url = "/v1/permission";
+        String key = generateRandomString().toLowerCase();
+        String idempotencyKey = UUID.randomUUID().toString();
+
+        CreatePermissionDTO dto = new CreatePermissionDTO(
+                "name-" + key,
+                "slug-" + key,
+                "Descrição de teste para permissão",
+                PermissionModule.IDENTITY,
+                PermissionResource.USER,
+                "action-" + key,
+                PermissionRiskLevel.LOW,
+                true,
+                false,
+                null
+        );
+
+        PermissionDTO result = given()
+                .contentType(ContentType.JSON)
+                .header("Idempotency-Key", idempotencyKey)
+                .header("Authorization", "Bearer " + masterToken.token())
+                .body(dto)
+                .when()
+                .post(url)
+                .then()
+                .statusCode(201)
+                .extract()
+                .jsonPath()
+                .getObject("data", PermissionDTO.class);
+
+        assertThat(result).isNotNull();
+        assertThat(result.getId()).isNotNull();
+        assertThat(result.getName()).isEqualTo(dto.name());
+        assertThat(result.getSlug()).isEqualTo(dto.slug());
+        assertThat(result.getDescription()).isEqualTo(dto.description());
+        assertThat(result.getModule()).isEqualTo(dto.module());
+        assertThat(result.getResource()).isEqualTo(dto.resource());
+        assertThat(result.getAction()).isEqualTo(dto.action());
+        assertThat(result.getRiskLevel()).isEqualTo(dto.riskLevel());
+        assertThat(result.getActive()).isEqualTo(dto.isActive());
+        assertThat(result.getSystem()).isEqualTo(dto.isSystem());
+
+        return result;
     }
 
     protected SessionEntity createSampleSession(UUID userId) {
