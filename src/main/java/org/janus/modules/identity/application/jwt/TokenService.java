@@ -7,7 +7,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.microprofile.jwt.Claims;
 import org.eclipse.microprofile.jwt.JsonWebToken;
-import org.janus.modules.identity.application.user.dto.UserDTO;
+import org.janus.modules.identity.application.user.dto.response.UserDTO;
 import org.janus.modules.identity.domain.entity.UserEntity;
 import org.janus.modules.identity.ports.in.jwt.ITokenService;
 import org.janus.shared.domain.api.TokenResponse;
@@ -26,7 +26,6 @@ import java.security.PrivateKey;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.*;
 
-
 @Slf4j
 @ApplicationScoped
 @RequiredArgsConstructor
@@ -37,36 +36,79 @@ public class TokenService implements ITokenService {
     private final JsonWebToken jwt;
 
     @Override
-    public Result<String> generateToken(UserEntity user, List<String> roles) {
-        if (Boolean.FALSE.equals(user.getIsActive()))
+    public Result<String> generateToken(
+            UserEntity user,
+            List<String> roles,
+            List<String> permissions
+    ) {
+        if (user == null || user.getId() == null) {
+            throw new IllegalArgumentException(
+                    "User and ID are required to set the claims."
+            );
+        }
+
+        if (Boolean.FALSE.equals(user.getIsActive())) {
             return Result.forb("User is unactive");
+        }
 
         try {
             JwtClaims claims = createBaseClaims(user);
 
-            Set<String> groups = new HashSet<>(roles);
+            Set<String> groups = new HashSet<>(
+                    roles != null
+                            ? roles
+                            : Collections.emptyList()
+            );
+
             groups.add("USER");
 
-            claims.setClaim(Claims.groups.name(), groups);
-            claims.setClaim("type", "token");
-            claims.setExpirationTimeMinutesInTheFuture(properties.exp().token() * 60);
+            claims.setClaim(
+                    Claims.groups.name(),
+                    groups
+            );
+
+            claims.setClaim(
+                    "type",
+                    "token"
+            );
+
+            claims.setClaim(
+                    "permissions",
+                    permissions != null
+                            ? permissions
+                            : Collections.emptyList()
+            );
+
+            claims.setExpirationTimeMinutesInTheFuture(
+                    properties.exp().token() * 60
+            );
 
             String token = signClaims(claims);
-            log.info("Token gerado: {}", token);
 
             return Result.success(token);
+
         } catch (Exception e) {
             log.error("Erro ao gerar token RSA", e);
-            throw new InternalServerErrorException(e.getMessage(), e);
+            throw new InternalServerErrorException(
+                    e.getMessage(),
+                    e
+            );
         }
     }
 
     @Override
-    public Result<Map<String, Object>> extractAllClaims(String token) {
-        JsonWebToken jwt = parseToken(token);
+    public Result<Map<String, Object>> extractAllClaims(
+            String token
+    ) {
+        JsonWebToken parsedToken = parseToken(token);
+
         Map<String, Object> claims = new HashMap<>();
-        for (String name : jwt.getClaimNames()) {
-            claims.put(name, jwt.getClaim(name));
+
+        for (String name : parsedToken.getClaimNames()) {
+            claims.put(
+                    name,
+                    parsedToken.getClaim(name)
+            );
         }
 
         return Result.success(claims);
@@ -74,61 +116,145 @@ public class TokenService implements ITokenService {
 
     @Override
     public Result<String> validateToken(String token) {
-        return Result.success(parseToken(token).getSubject());
+        return Result.success(
+                parseToken(token).getSubject()
+        );
     }
 
     @Override
-    public Result<TokenResponse> makeTokens(UserEntity user, List<String> roles, UserDTO userDTO) {
+    public Result<TokenResponse> makeTokens(
+            UserEntity user,
+            List<String> roles,
+            UserDTO userDTO
+    ) {
         return null;
     }
 
     private JwtClaims createBaseClaims(UserEntity user) {
+        if (user == null || user.getId() == null) {
+            throw new IllegalArgumentException(
+                    "User and ID are required to set the claims."
+            );
+        }
+
         JwtClaims claims = new JwtClaims();
-        claims.setSubject(user.getId().toString());
-        claims.setClaim(Claims.nickname.name(), user.getUsername());
-        claims.setClaim(Claims.email.name(), user.getEmail());
-        claims.setIssuedAt(NumericDate.fromSeconds(System.currentTimeMillis() / 1000));
+
+        claims.setSubject(
+                user.getId().toString()
+        );
+
+        claims.setClaim(
+                Claims.nickname.name(),
+                user.getUsername()
+        );
+
+        claims.setClaim(
+                Claims.email.name(),
+                user.getEmail()
+        );
+
+        claims.setIssuedAt(
+                NumericDate.fromSeconds(
+                        System.currentTimeMillis() / 1000
+                )
+        );
+
+        claims.setIssuer(
+                "https://janus.api"
+        );
+
         claims.setGeneratedJwtId();
+
         return claims;
     }
 
-    private String signClaims(JwtClaims claims) throws Exception {
-        PrivateKey pk = readPrivateKey();
+    private String signClaims(JwtClaims claims)
+            throws Exception {
 
-        JsonWebSignature jws = new JsonWebSignature();
+        PrivateKey privateKey = readPrivateKey();
 
-        jws.setPayload(claims.toJson());
-        jws.setKey(pk);
-        jws.setHeader("typ", "JWT");
-        jws.setAlgorithmHeaderValue(AlgorithmIdentifiers.RSA_USING_SHA256);
+        JsonWebSignature jws =
+                new JsonWebSignature();
+
+        jws.setPayload(
+                claims.toJson()
+        );
+
+        jws.setKey(privateKey);
+
+        jws.setHeader(
+                "typ",
+                "JWT"
+        );
+
+        jws.setAlgorithmHeaderValue(
+                AlgorithmIdentifiers.RSA_USING_SHA256
+        );
 
         return jws.getCompactSerialization();
     }
 
     private JsonWebToken parseToken(String token) {
-        if (token == null || token.isBlank()) throw new UnauthorizedException("Token missing");
+        if (token == null || token.isBlank()) {
+            throw new UnauthorizedException(
+                    "Token missing"
+            );
+        }
+
         try {
             return parser.parse(token);
         } catch (Exception e) {
-            throw new UnauthorizedException("Invalid token: " + e.getMessage());
+            throw new UnauthorizedException(
+                    "Invalid token: " + e.getMessage()
+            );
         }
     }
 
-    private PrivateKey readPrivateKey() throws Exception {
-        try (InputStream contentIS = TokenService.class.getResourceAsStream("/privateKey.pem")) {
-            if (contentIS == null) throw new RuntimeException("Chave privada não encontrada: " + "/privateKey.pem");
+    private PrivateKey readPrivateKey()
+            throws Exception {
+
+        try (
+                InputStream contentIS =
+                        TokenService.class
+                                .getResourceAsStream(
+                                        "/privateKey.pem"
+                                )
+        ) {
+            if (contentIS == null) {
+                throw new RuntimeException(
+                        "Chave privada não encontrada: /privateKey.pem"
+                );
+            }
+
             byte[] tmp = contentIS.readAllBytes();
-            String pem = new String(tmp, StandardCharsets.UTF_8)
-                    .replaceAll("-----BEGIN (.*)-----", "")
-                    .replaceAll("-----END (.*)-----", "")
+
+            String pem = new String(
+                    tmp,
+                    StandardCharsets.UTF_8
+            )
+                    .replaceAll(
+                            "-----BEGIN (.*)-----",
+                            ""
+                    )
+                    .replaceAll(
+                            "-----END (.*)-----",
+                            ""
+                    )
                     .replace("\r\n", "")
                     .replace("\n", "")
                     .trim();
 
-            byte[] encodedBytes = Base64.getDecoder().decode(pem);
-            PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(encodedBytes);
-            return KeyFactory.getInstance("RSA").generatePrivate(keySpec);
+            byte[] encodedBytes =
+                    Base64.getDecoder().decode(pem);
+
+            PKCS8EncodedKeySpec keySpec =
+                    new PKCS8EncodedKeySpec(
+                            encodedBytes
+                    );
+
+            return KeyFactory
+                    .getInstance("RSA")
+                    .generatePrivate(keySpec);
         }
     }
-
 }
