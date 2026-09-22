@@ -1,6 +1,7 @@
 package org.janus.configs.exceptions;
 
 import jakarta.validation.ConstraintViolationException;
+import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.core.Response;
 import org.janus.shared.domain.api.ResponseHTTP;
 import org.janus.shared.domain.exception.InternalServerErrorException;
@@ -14,6 +15,22 @@ import java.util.Map;
 public class GlobalExceptionHandler {
 
     private static final Logger LOG = Logger.getLogger(GlobalExceptionHandler.class);
+
+    @ServerExceptionMapper
+    public RestResponse<ResponseHTTP<Void>> handleIllegalArgument(IllegalArgumentException ex) {
+        LOG.warn("Parâmetro inválido recebido na requisição", ex);
+
+        ResponseHTTP<Void> response = ResponseHTTP.error("Formato de parâmetro inválido: " + ex.getMessage());
+        return RestResponse.status(Response.Status.BAD_REQUEST, response);
+    }
+
+    @ServerExceptionMapper
+    public RestResponse<ResponseHTTP<Void>> handleBadRequest(BadRequestException ex) {
+        LOG.warn("Requisição malformada capturada", ex);
+
+        ResponseHTTP<Void> response = ResponseHTTP.error("Parâmetro ou corpo da requisição inválido.");
+        return RestResponse.status(Response.Status.BAD_REQUEST, response);
+    }
 
     @ServerExceptionMapper
     public RestResponse<ResponseHTTP<Void>> handleNullPointer(NullPointerException ex) {
