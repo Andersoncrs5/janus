@@ -1,4 +1,4 @@
-package org.janus.modules.identity.application.user.dto;
+package org.janus.modules.identity.application.user.dto.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
