@@ -65,4 +65,19 @@ public abstract class BaseUseCase<T> {
 
         return DatabaseConstraintHandler.handle(e);
     }
+
+    protected Result<T> handleConstraintException(DataIntegrityViolationException e, Map<String, Supplier<Result<T>>> customHandlers) {
+        String message = e.getMessage();
+
+        if (message != null && customHandlers != null) {
+            String lowerMessage = message.toLowerCase();
+            for (Map.Entry<String, Supplier<Result<T>>> entry : customHandlers.entrySet()) {
+                if (lowerMessage.contains(entry.getKey())) {
+                    return entry.getValue().get();
+                }
+            }
+        }
+
+        return handleConstraintException(e);
+    }
 }
