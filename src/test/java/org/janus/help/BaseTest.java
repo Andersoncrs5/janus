@@ -16,6 +16,8 @@ import org.janus.modules.authorization.application.dto.permission.request.Create
 import org.janus.modules.authorization.application.dto.permission.response.PermissionDTO;
 import org.janus.modules.authorization.application.dto.role.request.CreateRoleDTO;
 import org.janus.modules.authorization.application.dto.role.response.RoleDTO;
+import org.janus.modules.authorization.application.dto.rolePermission.request.CreateRolePermissionDTO;
+import org.janus.modules.authorization.application.dto.rolePermission.response.RolePermissionDTO;
 import org.janus.modules.authorization.domain.entity.PermissionEntity;
 import org.janus.modules.authorization.domain.entity.RoleEntity;
 import org.janus.modules.authorization.domain.entity.RolePermissionEntity;
@@ -80,6 +82,44 @@ public class BaseTest {
 
     private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
     private static final SecureRandom RANDOM = new SecureRandom();
+
+    protected RolePermissionDTO createRolePermissionHTTP(
+            TokenResponse master,
+            PermissionDTO permissionHTTP,
+            RoleDTO roleHTTTP
+    ) {
+
+        String url = "/v1/role-permission";
+
+        CreateRolePermissionDTO dto = new CreateRolePermissionDTO(
+                roleHTTTP.getId(),
+                permissionHTTP.getId(),
+                PermissionEffectEnum.ALLOW,
+                "{\"scope\": \"all\"}",
+                null
+        );
+
+        RolePermissionDTO result = given()
+                .contentType(ContentType.JSON)
+                .header("Idempotency-Key", UUID.randomUUID().toString())
+                .header("Authorization", "Bearer " + master.token())
+                .body(dto)
+                .when()
+                .post(url)
+                .then()
+                .statusCode(201)
+                .extract()
+                .jsonPath()
+                .getObject("data", RolePermissionDTO.class);
+
+        assertThat(result).isNotNull();
+        assertThat(result.getId()).isNotNull();
+        assertThat(result.getAssignedBy()).isEqualTo(master.user().getId());
+        assertThat(result.getPermissionId()).isEqualTo(permissionHTTP.getId());
+        assertThat(result.getRoleId()).isEqualTo(roleHTTTP.getId());
+
+        return result;
+    }
 
     protected LoginAttemptEntity createSampleLoginAttempt(UUID userId, String email) {
         LoginAttemptEntity loginAttempt = new LoginAttemptEntity();
