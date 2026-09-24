@@ -8,7 +8,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 public class UpdateUserDTO {
-    private String 'username';
+    private String username;
     private String fullName;
     private Boolean isActive;
 }
