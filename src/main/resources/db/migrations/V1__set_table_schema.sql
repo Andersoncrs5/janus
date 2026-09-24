@@ -347,7 +347,10 @@ CREATE TABLE role_permissions (
         ON DELETE SET NULL,
 
     CONSTRAINT ck_role_permissions_version
-        CHECK (version >= 0)
+        CHECK (version >= 0),
+
+    CONSTRAINT ck_role_permissions_expires_at_future
+            CHECK (expires_at IS NULL OR expires_at > assigned_at)
 );
 
 CREATE UNIQUE INDEX uk_role_permissions_active
