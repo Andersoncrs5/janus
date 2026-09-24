@@ -9,4 +9,12 @@ public record CreateUserCredentialsDTO(
 
         PasswordAlgorithmEnum algorithm
 ) {
+
+    public static CreateUserCredentialsDTO init(String passwordHash, PasswordAlgorithmEnum algorithm) {
+        return new CreateUserCredentialsDTO(
+                passwordHash,
+                algorithm
+        );
+    }
+
 }

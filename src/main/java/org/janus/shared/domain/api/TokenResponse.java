@@ -1,7 +1,7 @@
 package org.janus.shared.domain.api;
 
 import jakarta.validation.constraints.NotBlank;
-import org.janus.modules.identity.application.user.dto.UserDTO;
+import org.janus.modules.identity.application.user.dto.response.UserDTO;
 
 import java.time.OffsetDateTime;
 import java.util.List;
