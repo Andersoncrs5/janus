@@ -200,6 +200,16 @@ janus:
         is-system: true
         is-active: true
 
+      - name: "To Update Permission"
+        slug: "permissions:update"
+        description: "Update permissions"
+        module: "authorization"
+        resource: "permission"
+        action: "update"
+        risk-level: "CRITICAL"
+        is-system: true
+        is-active: true
+
       # --- Role Permissions ---
       - name: "Atribuir Permissão a Papel"
         slug: "role-permissions:assign"
@@ -207,6 +217,16 @@ janus:
         module: "authorization"
         resource: "role-permission"
         action: "assign"
+        risk-level: "CRITICAL"
+        is-system: true
+        is-active: true
+
+      - name: "Update Permission in role"
+        slug: "role-permissions:update"
+        description: "Update Role Permission"
+        module: "authorization"
+        resource: "role-permission"
+        action: "update"
         risk-level: "CRITICAL"
         is-system: true
         is-active: true
