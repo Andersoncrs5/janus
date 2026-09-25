@@ -25,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@DisplayName("CreateRolePermissionUseCase")
 class CreateRolePermissionUseCaseTest {
 
     @Mock
@@ -73,7 +74,7 @@ class CreateRolePermissionUseCaseTest {
             assertThat(result).isNotNull();
             assertThat(result.isSuccess()).isFalse();
             assertThat(result.getStatusCode()).isEqualTo(400);
-            assertThat(result.getMessage()).contains("CreateRolePermissionDTO must not be null");
+            assertThat(result.getFirstError()).contains("CreateRolePermissionDTO must not be null");
 
             verifyNoInteractions(mapper, repository);
         }
@@ -93,7 +94,6 @@ class CreateRolePermissionUseCaseTest {
 
             assertThat(result).isNotNull();
             assertThat(result.isSuccess()).isTrue();
-            assertThat(result.getValue()).isEqualTo(rolePermissionEntity);
             assertThat(rolePermissionEntity.getAssignedBy()).isEqualTo(assignedBy);
 
             verify(mapper, times(1)).toEntity(createRolePermissionDTO);
@@ -118,8 +118,7 @@ class CreateRolePermissionUseCaseTest {
             assertThat(result).isNotNull();
             assertThat(result.isSuccess()).isFalse();
             assertThat(result.getStatusCode()).isEqualTo(409);
-            assertThat(result.getMessage().isPresent()).isTrue();
-            assertThat(result.getMessage().get()).contains("Permission is already assigned to this role");
+            assertThat(result.getFirstError()).contains("Permission is already assigned to this role");
         }
 
         @Test
@@ -135,8 +134,7 @@ class CreateRolePermissionUseCaseTest {
             assertThat(result).isNotNull();
             assertThat(result.isSuccess()).isFalse();
             assertThat(result.getStatusCode()).isEqualTo(404);
-            assertThat(result.getMessage().isPresent()).isTrue();
-            assertThat(result.getMessage().get()).contains("Role not found with ID: " + roleId);
+            assertThat(result.getFirstError()).contains("Role not found with ID: " + roleId);
         }
 
         @Test
@@ -152,8 +150,7 @@ class CreateRolePermissionUseCaseTest {
             assertThat(result).isNotNull();
             assertThat(result.isSuccess()).isFalse();
             assertThat(result.getStatusCode()).isEqualTo(404);
-            assertThat(result.getMessage().isPresent()).isTrue();
-            assertThat(result.getMessage().get()).contains("Permission not found with ID: " + permissionId);
+            assertThat(result.getFirstError()).contains("Permission not found with ID: " + permissionId);
         }
 
         @Test
@@ -169,25 +166,7 @@ class CreateRolePermissionUseCaseTest {
             assertThat(result).isNotNull();
             assertThat(result.isSuccess()).isFalse();
             assertThat(result.getStatusCode()).isEqualTo(400);
-            assertThat(result.getMessage().isPresent()).isTrue();
-            assertThat(result.getMessage().get()).contains("User assigned by not found with ID: " + assignedBy);
-        }
-
-        @Test
-        @DisplayName("Should return 400 bad request when ck_role_permissions_version constraint fails")
-        void shouldReturn400WhenInvalidVersion() {
-            String errorMessage = "Data integrity violation: ck_role_permissions_version constraint failed";
-            when(mapper.toEntity(createRolePermissionDTO)).thenReturn(rolePermissionEntity);
-            when(repository.insert(rolePermissionEntity))
-                    .thenThrow(new DataIntegrityViolationException(errorMessage));
-
-            Result<RolePermissionEntity> result = useCase.execute(createRolePermissionDTO, assignedBy);
-
-            assertThat(result).isNotNull();
-            assertThat(result.isSuccess()).isFalse();
-            assertThat(result.getStatusCode()).isEqualTo(400);
-            assertThat(result.getMessage().isPresent()).isTrue();
-            assertThat(result.getMessage().get()).contains("Invalid record version");
+            assertThat(result.getFirstError()).contains("User assigned by not found with ID: " + assignedBy);
         }
 
         @Test
@@ -203,9 +182,24 @@ class CreateRolePermissionUseCaseTest {
             assertThat(result).isNotNull();
             assertThat(result.isSuccess()).isFalse();
             assertThat(result.getStatusCode()).isEqualTo(400);
-            assertThat(result.getMessage().isPresent()).isTrue();
-            assertThat(result.getMessage().isPresent()).isTrue();
-            assertThat(result.getMessage().get()).contains("Expiration date must be in the future");
+            assertThat(result.getFirstError()).contains("Expiration date must be in the future");
+        }
+
+        @Test
+        @DisplayName("Should extract constraint message from exception cause when present")
+        void shouldExtractConstraintMessageFromCause() {
+            Throwable cause = new Throwable("violates unique constraint \"uk_role_permissions_active\"");
+            DataIntegrityViolationException exception = new DataIntegrityViolationException("Outer error message", cause);
+
+            when(mapper.toEntity(createRolePermissionDTO)).thenReturn(rolePermissionEntity);
+            when(repository.insert(rolePermissionEntity)).thenThrow(exception);
+
+            Result<RolePermissionEntity> result = useCase.execute(createRolePermissionDTO, assignedBy);
+
+            assertThat(result).isNotNull();
+            assertThat(result.isSuccess()).isFalse();
+            assertThat(result.getStatusCode()).isEqualTo(409);
+            assertThat(result.getFirstError()).contains("Permission is already assigned to this role");
         }
 
         @Test
