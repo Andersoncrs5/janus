@@ -3,6 +3,8 @@ package org.janus.shared.domain.queries;
 import jakarta.enterprise.context.ApplicationScoped;
 import lombok.Getter;
 import org.janus.shared.domain.exception.DataIntegrityViolationException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.sql.DataSource;
 import java.sql.*;
@@ -13,6 +15,7 @@ import java.util.stream.Collectors;
 @ApplicationScoped
 public class Query {
 
+    private static final Logger log = LoggerFactory.getLogger(Query.class);
     private final List<String> conditions =
             new ArrayList<>();
 
@@ -189,6 +192,10 @@ public class Query {
                     throw new IllegalStateException("Insert did not return any rows for table: " + table);
                 }
             } catch (SQLException e) {
+                if (e.getSQLState() != null && e.getSQLState().startsWith("23")) {
+                    throw new DataIntegrityViolationException("Data integrity violation for table: " + table, e);
+                }
+                log.error("Error executing INSERT for table: {}", table, e);
                 throw new IllegalStateException("Error executing INSERT for table: " + table, e);
             }
         }
