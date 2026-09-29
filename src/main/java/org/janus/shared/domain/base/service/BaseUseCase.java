@@ -24,17 +24,6 @@ public abstract class BaseUseCase<T> {
         } catch (DataIntegrityViolationException e) {
             return handleConstraintException(e);
         } catch (Exception e) {
-            Throwable rootCause = getRootCause(e);
-            String message = rootCause != null ? rootCause.getMessage() : e.getMessage();
-
-            if (message != null) {
-                for (Map.Entry<String, Supplier<Result<T>>> entry : getConstraintHandlers().entrySet()) {
-                    if (message.contains(entry.getKey())) {
-                        return entry.getValue().get();
-                    }
-                }
-            }
-
             throw new InternalServerErrorException(e.getMessage(), e);
         }
     }
@@ -52,12 +41,16 @@ public abstract class BaseUseCase<T> {
     }
 
     protected Result<T> handleConstraintException(DataIntegrityViolationException e) {
-        String message = e.getMessage();
+        String message = e.getCause() != null &&
+                e.getCause().getMessage() != null
+                ? e.getCause().getMessage()
+                : e.getMessage();
 
         if (message != null) {
             String lowerMessage = message.toLowerCase();
-            for (Map.Entry<String, Supplier<Result<T>>> entry : getConstraintHandlers().entrySet()) {
-                if (lowerMessage.contains(entry.getKey())) {
+
+            for (var entry : getConstraintHandlers().entrySet()) {
+                if (lowerMessage.contains(entry.getKey().toLowerCase())) {
                     return entry.getValue().get();
                 }
             }
@@ -66,13 +59,20 @@ public abstract class BaseUseCase<T> {
         return DatabaseConstraintHandler.handle(e);
     }
 
-    protected Result<T> handleConstraintException(DataIntegrityViolationException e, Map<String, Supplier<Result<T>>> customHandlers) {
-        String message = e.getMessage();
+    protected Result<T> handleConstraintException(
+            DataIntegrityViolationException e,
+            Map<String, Supplier<Result<T>>> customHandlers
+    ) {
+        String message = e.getCause() != null &&
+                e.getCause().getMessage() != null
+                ? e.getCause().getMessage()
+                : e.getMessage();
 
         if (message != null && customHandlers != null) {
             String lowerMessage = message.toLowerCase();
-            for (Map.Entry<String, Supplier<Result<T>>> entry : customHandlers.entrySet()) {
-                if (lowerMessage.contains(entry.getKey())) {
+
+            for (var entry : customHandlers.entrySet()) {
+                if (lowerMessage.contains(entry.getKey().toLowerCase())) {
                     return entry.getValue().get();
                 }
             }
