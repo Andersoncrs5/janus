@@ -251,6 +251,16 @@ janus:
         is-system: true
         is-active: true
 
+      - name: "Visualizar Métricas da API"
+        slug: "system:metrics:read"
+        description: "Acessar dados de telemetria, health checks e métricas"
+        module: "authorization"
+        resource: "system-metric"
+        action: "read"
+        risk-level: "LOW"
+        is-system: true
+        is-active: true
+
       # --- Auditoria ---
       - name: "Visualizar Auditoria"
         slug: "audit:read"
@@ -259,6 +269,17 @@ janus:
         resource: "audit-log"
         action: "read"
         risk-level: "MEDIUM"
+        is-system: true
+        is-active: true
+
+      # --- Exportação e Relatórios ---
+      - name: "Exportar Relatórios de Auditoria"
+        slug: "audit:export"
+        description: "Exportar dados de auditoria em CSV/JSON/PDF"
+        module: "audit"
+        resource: "audit-log"
+        action: "export"
+        risk-level: "HIGH"
         is-system: true
         is-active: true
 
@@ -280,6 +301,59 @@ janus:
         resource: "system-setting"
         action: "update"
         risk-level: "CRITICAL"
+        is-system: true
+        is-active: true
+
+      # --- Chaves de API e Tokens ---
+      - name: "Criar API Key"
+        slug: "api-keys:create"
+        description: "Gerar novas chaves de API de integração"
+        module: "authorization"
+        resource: "api-key"
+        action: "create"
+        risk-level: "HIGH"
+        is-system: true
+        is-active: true
+
+      - name: "Visualizar API Keys"
+        slug: "api-keys:read"
+        description: "Listar chaves de API existentes"
+        module: "authorization"
+        resource: "api-key"
+        action: "read"
+        risk-level: "LOW"
+        is-system: true
+        is-active: true
+
+      - name: "Revogar API Key"
+        slug: "api-keys:revoke"
+        description: "Inativar ou deletar chaves de API"
+        module: "authorization"
+        resource: "api-key"
+        action: "revoke"
+        risk-level: "HIGH"
+        is-system: true
+        is-active: true
+
+
+      # --- Vincular/Desvincular Papéis a Usuários ---
+      - name: "Atribuir Papel ao Usuário"
+        slug: "user-roles:assign"
+        description: "Atribuir um papel a um usuário"
+        module: "authorization"
+        resource: "user-role"
+        action: "assign"
+        risk-level: "HIGH"
+        is-system: true
+        is-active: true
+
+      - name: "Revogar Papel do Usuário"
+        slug: "user-roles:revoke"
+        description: "Remover um papel de um usuário"
+        module: "authorization"
+        resource: "user-role"
+        action: "revoke"
+        risk-level: "HIGH"
         is-system: true
         is-active: true
 
