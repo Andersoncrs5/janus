@@ -75,8 +75,8 @@ public class RoleRepositoryJdbc
         entity.setName(rs.getString("name"));
         entity.setSlug(rs.getString("slug"));
         entity.setDescription(rs.getString("description"));
-        entity.setIsActive(rs.getBoolean("is_active"));
-        entity.setIsSystem(rs.getBoolean("is_system"));
+        entity.setActive(rs.getBoolean("is_active"));
+        entity.setSystem(rs.getBoolean("is_system"));
 
         return entity;
     }
@@ -92,8 +92,8 @@ public class RoleRepositoryJdbc
                 .value("slug", entity.getSlug())
                 .value("name", entity.getName())
                 .value("description", entity.getDescription())
-                .value("is_active", entity.getIsActive() != null ? entity.getIsActive() : Boolean.TRUE)
-                .value("is_system", entity.getIsSystem() != null ? entity.getIsSystem() : Boolean.FALSE)
+                .value("is_active", entity.getActive() != null ? entity.getActive() : Boolean.TRUE)
+                .value("is_system", entity.getSystem() != null ? entity.getSystem() : Boolean.FALSE)
                 .value("version", 0L)
                 .value("created_at", OffsetDateTime.now())
                 .value("updated_at", OffsetDateTime.now())
@@ -125,8 +125,8 @@ public class RoleRepositoryJdbc
                 .set("slug", entity.getSlug())
                 .set("name", entity.getName())
                 .set("description", entity.getDescription())
-                .set("is_active", entity.getIsActive() != null ? entity.getIsActive() : Boolean.TRUE)
-                .set("is_system", entity.getIsSystem() != null ? entity.getIsSystem() : Boolean.FALSE)
+                .set("is_active", entity.getActive() != null ? entity.getActive() : Boolean.TRUE)
+                .set("is_system", entity.getSystem() != null ? entity.getSystem() : Boolean.FALSE)
                 .setExpression("version = version + 1")
                 .setExpression("updated_at = CURRENT_TIMESTAMP")
                 .where("id", entity.getId())

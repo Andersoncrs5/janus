@@ -69,7 +69,7 @@ public class RoleRepositoryJdbcTest extends BaseTest {
             RoleEntity role = initRole("ROLE_OPERATOR", "operator");
 
             role.setDescription("Nova descrição atualizada");
-            role.setIsActive(false);
+            role.setActive(false);
 
             RoleEntity updated = roleRepository.save(role);
 
@@ -78,7 +78,7 @@ public class RoleRepositoryJdbcTest extends BaseTest {
             Optional<RoleEntity> fetched = roleRepository.findByName("ROLE_OPERATOR");
             assertThat(fetched).isPresent();
             assertThat(fetched.get().getDescription()).isEqualTo("Nova descrição atualizada");
-            assertThat(fetched.get().getIsActive()).isFalse();
+            assertThat(fetched.get().getActive()).isFalse();
         }
 
         @Test
@@ -141,11 +141,11 @@ public class RoleRepositoryJdbcTest extends BaseTest {
         @Test
         void shouldFilterRolesByNameAndStatus() {
             RoleEntity r1 = createSampleRole("DEV_ADMIN", "dev-admin");
-            r1.setIsActive(true);
+            r1.setActive(true);
             roleRepository.insert(r1);
 
             RoleEntity r2 = createSampleRole("DEV_GUEST", "dev-guest");
-            r2.setIsActive(false);
+            r2.setActive(false);
             roleRepository.insert(r2);
 
             RoleFilterDTO filter = new RoleFilterDTO();
