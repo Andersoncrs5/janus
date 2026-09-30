@@ -39,14 +39,14 @@ public class UpdateRolePermissionUseCase implements IUpdateRolePermissionUseCase
         try {
             RolePermissionEntity saved = repository.save(entity);
 
-            return Result.created(saved);
+            return Result.ok(saved);
         } catch (DataIntegrityViolationException e) {
             String message = e.getMessage();
 
             if (message == null) {
                 return DatabaseConstraintHandler.handle(e);
             }
-            
+
             return DatabaseConstraintHandler.handle(e);
         } catch (Exception e) {
             throw new InternalServerErrorException(e.getMessage(), e);

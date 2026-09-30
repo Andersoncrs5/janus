@@ -1,8 +1,7 @@
-package org.janus.modules.authorization.service.rolePermission;
+package org.janus.modules.authorization.application.service.rolePermission;
 
 import org.janus.modules.authorization.application.dto.rolePermission.request.UpdateRolePermissionDTO;
 import org.janus.modules.authorization.application.mapper.RolePermissionMapper;
-import org.janus.modules.authorization.application.service.rolePermission.UpdateRolePermissionUseCase;
 import org.janus.modules.authorization.domain.entity.RolePermissionEntity;
 import org.janus.modules.authorization.infrastructure.out.RolePermissionRepository;
 import org.janus.shared.domain.enums.rolePermission.PermissionEffectEnum;
@@ -118,7 +117,7 @@ public class UpdateRolePermissionUseCaseTest {
 
             assertThat(result).isNotNull();
             assertThat(result.isSuccess()).isTrue();
-            assertThat(result.getStatusCode()).isEqualTo(201);
+            assertThat(result.getStatusCode()).isEqualTo(200);
             assertThat(result.getValue()).isEqualTo(rolePermissionEntity);
 
             verify(repository, times(1)).findById(id);
