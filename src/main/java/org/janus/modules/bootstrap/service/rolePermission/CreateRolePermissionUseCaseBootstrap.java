@@ -1,93 +1,116 @@
 package org.janus.modules.bootstrap.service.rolePermission;
 
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.janus.modules.authorization.application.dto.rolePermission.request.CreateRolePermissionDTO;
 import org.janus.modules.authorization.domain.entity.PermissionEntity;
 import org.janus.modules.authorization.domain.entity.RoleEntity;
 import org.janus.modules.authorization.domain.entity.RolePermissionEntity;
+import org.janus.modules.authorization.infrastructure.out.PermissionRepository;
+import org.janus.modules.authorization.infrastructure.out.RolePermissionRepository;
+import org.janus.modules.authorization.infrastructure.out.RoleRepository;
 import org.janus.modules.bootstrap.contract.IApplicationBootstrap;
-import org.janus.modules.bootstrap.gateway.BootstrapInBoundGateway;
 import org.janus.shared.domain.enums.rolePermission.PermissionEffectEnum;
-import org.janus.shared.domain.result.Result;
+import org.janus.shared.domain.exception.InternalServerErrorException;
 import org.janus.shared.infrastructure.properties.BootstrapProperties;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Slf4j
 @ApplicationScoped
 @RequiredArgsConstructor
-public class CreateRolePermissionUseCaseBootstrap implements IApplicationBootstrap {
+public class CreateRolePermissionUseCaseBootstrap
+        implements IApplicationBootstrap {
 
-    private final BootstrapProperties properties;
-    private final BootstrapInBoundGateway gateway;
+    private static final Logger log =
+            LoggerFactory.getLogger(CreateRolePermissionUseCaseBootstrap.class);
+
+    @Inject
+    private BootstrapProperties properties;
+    @Inject
+    private RoleRepository roleRepository;
+    @Inject
+    private PermissionRepository permissionRepository;
+    @Inject
+    private RolePermissionRepository rolePermissionRepository;
 
     @Override
     @Transactional
     public void execute() {
-        if (properties.permissions() == null || properties.permissions().isEmpty()) {
+
+        if (properties.permissions() == null
+                || properties.permissions().isEmpty()) {
+
             log.info("No initial permissions defined to link with roles.");
             return;
         }
 
-        Result<RoleEntity> roleResult = gateway.roleOutboundGateway()
-                .findRoleByNameUseCase().execute("MASTER");
+        RoleEntity masterRole = roleRepository
+                .findByName("MASTER")
+                .orElseThrow(() ->
+                        new InternalServerErrorException(
+                                "MASTER role not found during bootstrap"
+                        )
+                );
 
-        if (roleResult.isFailure()) {
-            log.error("Failed to find 'MASTER' role to assign permissions: {}", roleResult.getFirstError());
-            return;
-        }
-
-        RoleEntity masterRole = roleResult.getData();
         int linkedCount = 0;
 
-        for (BootstrapProperties.PermissionConfig permConfig : properties.permissions()) {
+        for (BootstrapProperties.PermissionConfig item
+                : properties.permissions()) {
 
-            Result<PermissionEntity> permissionResult = gateway.permissionOutboundGateway()
-                    .findPermissionByNameUseCase().execute(permConfig.name());
+            PermissionEntity permission = permissionRepository
+                    .findByName(item.name())
+                    .orElseThrow(() ->
+                            new InternalServerErrorException(
+                                    "Permission '" + item.name()
+                                            + "' not found during bootstrap"
+                            )
+                    );
 
-            if (permissionResult.isFailure()) {
-                log.warn("Permission '{}' not found in database. Skipping assignment.", permConfig.name());
+            boolean alreadyExists =
+                    rolePermissionRepository
+                            .existsByRoleIdAndPermissionId(
+                                    masterRole.getId(),
+                                    permission.getId()
+                            );
+
+            if (alreadyExists) {
+                log.debug(
+                        "Permission '{}' is already assigned to 'MASTER'.",
+                        item.name()
+                );
                 continue;
             }
 
-            PermissionEntity permission = permissionResult.getData();
+            RolePermissionEntity rolePermission =
+                    RolePermissionEntity.builder()
+                            .roleId(masterRole.getId())
+                            .permissionId(permission.getId())
+                            .effect(PermissionEffectEnum.ALLOW)
+                            .conditions(null)
+                            .expiresAt(null)
+                            .assignedBy(null)
+                            .build();
 
-            Result<Boolean> checkResult = gateway.rolePermissionOutboundGateway()
-                    .existsRolePermissionByRoleIdAndPermissionIdUseCase()
-                    .execute(masterRole.getId(), permission.getId());
+            rolePermissionRepository.insert(rolePermission);
 
-            if (checkResult.isFailure()) {
-                log.error("Failed to check if permission '{}' is linked to MASTER: {}", permConfig.name(), checkResult.getFirstError());
-                continue;
-            }
+            linkedCount++;
 
-            if (Boolean.TRUE.equals(checkResult.getData())) {
-                log.debug("Permission '{}' is already assigned to 'MASTER'.", permConfig.name());
-                continue;
-            }
-
-            CreateRolePermissionDTO dto = new CreateRolePermissionDTO(
-                    masterRole.getId(),
-                    permission.getId(),
-                    PermissionEffectEnum.ALLOW,
-                    null,
-                    null
+            log.debug(
+                    "Permission '{}' linked to 'MASTER' successfully.",
+                    item.name()
             );
-
-            Result<RolePermissionEntity> createResult = gateway.rolePermissionOutboundGateway()
-                    .createRolePermissionUseCase().execute(dto, null);
-
-            if (createResult.isFailure()) {
-                log.error("Failed to link permission '{}' to 'MASTER': {}", permConfig.name(), createResult.getFirstError());
-            } else {
-                linkedCount++;
-                log.debug("Permission '{}' linked to 'MASTER' successfully.", permConfig.name());
-            }
         }
 
         if (linkedCount > 0) {
-            log.info("Successfully linked {} new permissions to the 'MASTER' role.", linkedCount);
+            log.info(
+                    "Successfully linked {} new permissions to the 'MASTER' role.",
+                    linkedCount
+            );
+        } else {
+            log.info(
+                    "All configured permissions are already linked to the 'MASTER' role."
+            );
         }
     }
 }
