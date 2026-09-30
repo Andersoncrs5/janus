@@ -10,7 +10,10 @@ public enum PermissionResource {
     PERMISSION("PERMISSION"),
     ROLE_PERMISSION("ROLE_PERMISSION"),
     AUDIT_LOG("AUDIT_LOG"),
-    SYSTEM_SETTING("SYSTEM_SETTING");
+    SYSTEM_SETTING("SYSTEM_SETTING"),
+    SYSTEM_METRIC("SYSTEM_METRIC"),
+    API_KEY("API_KEY"),
+    USER_ROLE("USER_ROLE");
 
     private final String value;
 
