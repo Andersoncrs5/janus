@@ -11,8 +11,6 @@ import org.jspecify.annotations.Nullable;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
-@Getter
-@Setter
 @SuperBuilder
 @AllArgsConstructor
 @NoArgsConstructor
@@ -23,7 +21,41 @@ public class UserRoleEntity extends BaseEntity {
 
     private UUID roleId;
 
-    @Nullable private OffsetDateTime expiresAt;
+    @Nullable
+    private OffsetDateTime expiresAt;
 
-    @Nullable private UUID assignedById;
+    @Nullable
+    private UUID assignedById;
+
+    public UUID getUserId() {
+        return userId;
+    }
+
+    public void setUserId(UUID userId) {
+        this.userId = userId;
+    }
+
+    public UUID getRoleId() {
+        return roleId;
+    }
+
+    public void setRoleId(UUID roleId) {
+        this.roleId = roleId;
+    }
+
+    public @Nullable OffsetDateTime getExpiresAt() {
+        return expiresAt;
+    }
+
+    public void setExpiresAt(@Nullable OffsetDateTime expiresAt) {
+        this.expiresAt = expiresAt;
+    }
+
+    public @Nullable UUID getAssignedById() {
+        return assignedById;
+    }
+
+    public void setAssignedById(@Nullable UUID assignedById) {
+        this.assignedById = assignedById;
+    }
 }
