@@ -18,6 +18,9 @@ import org.janus.modules.authorization.application.dto.role.request.CreateRoleDT
 import org.janus.modules.authorization.application.dto.role.response.RoleDTO;
 import org.janus.modules.authorization.application.dto.rolePermission.request.CreateRolePermissionDTO;
 import org.janus.modules.authorization.application.dto.rolePermission.response.RolePermissionDTO;
+import org.janus.modules.authorization.application.dto.userRole.request.CreateUserRoleDTO;
+import org.janus.modules.authorization.application.dto.userRole.response.UserRoleDTO;
+import org.janus.modules.authorization.application.mapper.RoleMapper;
 import org.janus.modules.authorization.domain.entity.PermissionEntity;
 import org.janus.modules.authorization.domain.entity.RoleEntity;
 import org.janus.modules.authorization.domain.entity.RolePermissionEntity;
@@ -44,8 +47,12 @@ import java.util.UUID;
 
 import static io.restassured.RestAssured.given;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.equalTo;
 
 public class BaseTest {
+
+    @Inject
+    protected RoleMapper roleMapper;
 
     @Inject
     protected RefreshTokenRepositoryJdbc refreshTokenRepository;
@@ -383,6 +390,42 @@ public class BaseTest {
         return refreshTokenRepository.insert(createSampleRefreshToken(sessionId, userId, tokenHash));
     }
 
+    protected UserRoleDTO createUserRoleHTTP(
+            TokenResponse master,
+            TokenResponse usr,
+            RoleDTO role
+    ) {
+        UUID key = UUID.randomUUID();
+        String url = "/v1/user-role";
+
+        CreateUserRoleDTO dto = new CreateUserRoleDTO();
+        dto.setUserId(usr.user().getId());
+        dto.setRoleId(role.getId());
+        dto.setAssignedById(master.user().getId());
+        dto.setExpiresAt(null);
+
+        UserRoleDTO object = given()
+                .contentType(ContentType.JSON)
+                .header("Authorization", "Bearer " + master.token())
+                .header("Idempotency-Key", key.toString())
+                .body(dto)
+                .when()
+                .post(url)
+                .then()
+                .statusCode(201)
+                .body("traceId", equalTo(key.toString()))
+                .body("success", equalTo(true))
+                .extract()
+                .jsonPath()
+                .getObject("data", UserRoleDTO.class);
+
+        assertThat(object.getId()).isNotNull();
+        assertThat(object.getRoleId()).isEqualTo(role.getId());
+        assertThat(object.getUserId()).isEqualTo(usr.user().getId());
+
+        return object;
+    }
+
     protected UserRoleEntity initUserRole(UUID userId, UUID roleId, OffsetDateTime expiresAt) {
         UserRoleEntity userRole = new UserRoleEntity();
         userRole.setId(UUID.randomUUID());
@@ -452,14 +495,31 @@ public class BaseTest {
         role.setName(name);
         role.setSlug(slug + UUID.randomUUID());
         role.setDescription("Descrição da role " + name);
-        role.setIsActive(true);
-        role.setIsSystem(false);
+        role.setActive(true);
+        role.setSystem(false);
         return role;
     }
 
     protected RoleEntity initRole() {
         var key = UUID.randomUUID().toString();
         RoleEntity role = createSampleRole("role name" + key, "role-name-" + key);
+        return roleRepository.insert(role);
+    }
+
+    protected RoleEntity createSampleRole(String name, String slug, boolean isActive) {
+        RoleEntity role = new RoleEntity();
+        role.setId(UUID.randomUUID());
+        role.setName(name);
+        role.setSlug(slug + UUID.randomUUID());
+        role.setDescription("Descrição da role " + name);
+        role.setActive(isActive);
+        role.setSystem(false);
+        return role;
+    }
+
+    protected RoleEntity initRole(boolean isActive) {
+        var key = UUID.randomUUID().toString();
+        RoleEntity role = createSampleRole("role name" + key, "role-name-" + key, isActive);
         return roleRepository.insert(role);
     }
 
