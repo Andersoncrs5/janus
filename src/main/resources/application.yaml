@@ -63,24 +63,29 @@ janus:
         - admin
         - user
         - master
+
     roles:
       - name: MASTER
         slug: master
         description: System Master Role
         is-system: true
+
       - name: ADMINISTRADOR
         slug: admin
         description: System Administrator Role
         is-system: true
+
       - name: USER
         slug: user
         description: Standard User Role
         is-system: true
+
     permissions:
-      # --- Usuários ---
+
+      # --- Users ---
       - name: "Criar Usuário"
         slug: "users:create"
-        description: "Criar novos usuários no sistema"
+        description: "Create new users in the system"
         module: "authorization"
         resource: "user"
         action: "create"
@@ -90,7 +95,7 @@ janus:
 
       - name: "Visualizar Usuários"
         slug: "users:read"
-        description: "Visualizar informações e listas de usuários"
+        description: "View user information and user lists"
         module: "authorization"
         resource: "user"
         action: "read"
@@ -100,7 +105,7 @@ janus:
 
       - name: "Atualizar Usuário"
         slug: "users:update"
-        description: "Atualizar dados de usuários existentes"
+        description: "Update existing user information"
         module: "authorization"
         resource: "user"
         action: "update"
@@ -110,7 +115,7 @@ janus:
 
       - name: "Remover Usuário"
         slug: "users:delete"
-        description: "Remover ou inativar usuários"
+        description: "Delete or deactivate users"
         module: "authorization"
         resource: "user"
         action: "delete"
@@ -120,7 +125,7 @@ janus:
 
       - name: "Personificar Usuário"
         slug: "users:impersonate"
-        description: "Assumir a sessão de outro usuário (suporte/admin)"
+        description: "Impersonate another user's session for support or administrative purposes"
         module: "authorization"
         resource: "user"
         action: "impersonate"
@@ -131,7 +136,7 @@ janus:
       # --- Roles ---
       - name: "Criar Papel"
         slug: "roles:create"
-        description: "Criar novos papéis no sistema"
+        description: "Create new roles in the system"
         module: "authorization"
         resource: "role"
         action: "create"
@@ -141,7 +146,7 @@ janus:
 
       - name: "Visualizar Papéis"
         slug: "roles:read"
-        description: "Listar e visualizar papéis existentes"
+        description: "List and view existing roles"
         module: "authorization"
         resource: "role"
         action: "read"
@@ -151,7 +156,7 @@ janus:
 
       - name: "Atualizar Papel"
         slug: "roles:update"
-        description: "Editar permissões e metadados de papéis"
+        description: "Edit role permissions and metadata"
         module: "authorization"
         resource: "role"
         action: "update"
@@ -161,7 +166,7 @@ janus:
 
       - name: "Remover Papel"
         slug: "roles:delete"
-        description: "Remover papéis do sistema"
+        description: "Remove roles from the system"
         module: "authorization"
         resource: "role"
         action: "delete"
@@ -169,10 +174,10 @@ janus:
         is-system: true
         is-active: true
 
-      # --- Permissões ---
+      # --- Permissions ---
       - name: "Visualizar Permissões"
         slug: "permissions:read"
-        description: "Listar todas as permissões registradas na API"
+        description: "List all permissions registered in the API"
         module: "authorization"
         resource: "permission"
         action: "read"
@@ -182,7 +187,7 @@ janus:
 
       - name: "Delete Permission"
         slug: "permissions:delete"
-        description: "To Delete permission in API"
+        description: "Delete a permission from the API"
         module: "authorization"
         resource: "permission"
         action: "delete"
@@ -192,7 +197,7 @@ janus:
 
       - name: "Criar Permissão"
         slug: "permissions:create"
-        description: "Registrar novas permissões no catálogo"
+        description: "Register new permissions in the permission catalog"
         module: "authorization"
         resource: "permission"
         action: "create"
@@ -213,7 +218,7 @@ janus:
       # --- Role Permissions ---
       - name: "Atribuir Permissão a Papel"
         slug: "role-permissions:assign"
-        description: "Vincular permissões a um papel (ALLOW)"
+        description: "Assign permissions to a role using ALLOW"
         module: "authorization"
         resource: "role-permission"
         action: "assign"
@@ -223,7 +228,7 @@ janus:
 
       - name: "Update Permission in role"
         slug: "role-permissions:update"
-        description: "Update Role Permission"
+        description: "Update a role permission"
         module: "authorization"
         resource: "role-permission"
         action: "update"
@@ -233,7 +238,7 @@ janus:
 
       - name: "Revogar Permissão de Papel"
         slug: "role-permissions:revoke"
-        description: "Revogar permissões de um papel (DENY ou remoção)"
+        description: "Revoke permissions from a role using DENY or removal"
         module: "authorization"
         resource: "role-permission"
         action: "revoke"
@@ -243,7 +248,7 @@ janus:
 
       - name: "Visualizar Permissões do Papel"
         slug: "role-permissions:read"
-        description: "Listar permissões vinculadas a cada papel"
+        description: "List permissions assigned to each role"
         module: "authorization"
         resource: "role-permission"
         action: "read"
@@ -253,7 +258,7 @@ janus:
 
       - name: "Visualizar Métricas da API"
         slug: "system:metrics:read"
-        description: "Acessar dados de telemetria, health checks e métricas"
+        description: "Access telemetry data, health checks, and metrics"
         module: "authorization"
         resource: "system-metric"
         action: "read"
@@ -261,10 +266,10 @@ janus:
         is-system: true
         is-active: true
 
-      # --- Auditoria ---
+      # --- Audit ---
       - name: "Visualizar Auditoria"
         slug: "audit:read"
-        description: "Visualizar logs de acesso e ações críticas"
+        description: "View access logs and critical actions"
         module: "audit"
         resource: "audit-log"
         action: "read"
@@ -272,10 +277,10 @@ janus:
         is-system: true
         is-active: true
 
-      # --- Exportação e Relatórios ---
+      # --- Export and Reports ---
       - name: "Exportar Relatórios de Auditoria"
         slug: "audit:export"
-        description: "Exportar dados de auditoria em CSV/JSON/PDF"
+        description: "Export audit data in CSV, JSON, or PDF format"
         module: "audit"
         resource: "audit-log"
         action: "export"
@@ -283,10 +288,10 @@ janus:
         is-system: true
         is-active: true
 
-      # --- Configurações ---
+      # --- Settings ---
       - name: "Visualizar Configurações do Sistema"
         slug: "system:settings:read"
-        description: "Visualizar parâmetros do sistema"
+        description: "View system parameters"
         module: "authorization"
         resource: "system-setting"
         action: "read"
@@ -296,7 +301,7 @@ janus:
 
       - name: "Atualizar Configurações do Sistema"
         slug: "system:settings:update"
-        description: "Alterar parâmetros globais da API"
+        description: "Change global API parameters"
         module: "authorization"
         resource: "system-setting"
         action: "update"
@@ -304,10 +309,10 @@ janus:
         is-system: true
         is-active: true
 
-      # --- Chaves de API e Tokens ---
+      # --- API Keys and Tokens ---
       - name: "Criar API Key"
         slug: "api-keys:create"
-        description: "Gerar novas chaves de API de integração"
+        description: "Generate new API keys for integrations"
         module: "authorization"
         resource: "api-key"
         action: "create"
@@ -317,7 +322,7 @@ janus:
 
       - name: "Visualizar API Keys"
         slug: "api-keys:read"
-        description: "Listar chaves de API existentes"
+        description: "List existing API keys"
         module: "authorization"
         resource: "api-key"
         action: "read"
@@ -327,7 +332,7 @@ janus:
 
       - name: "Revogar API Key"
         slug: "api-keys:revoke"
-        description: "Inativar ou deletar chaves de API"
+        description: "Deactivate or delete API keys"
         module: "authorization"
         resource: "api-key"
         action: "revoke"
@@ -335,11 +340,10 @@ janus:
         is-system: true
         is-active: true
 
-
-      # --- Vincular/Desvincular Papéis a Usuários ---
+      # --- Assign/Revoke User Roles ---
       - name: "Atribuir Papel ao Usuário"
         slug: "user-roles:assign"
-        description: "Atribuir um papel a um usuário"
+        description: "Assign a role to a user"
         module: "authorization"
         resource: "user-role"
         action: "assign"
@@ -349,10 +353,20 @@ janus:
 
       - name: "Revogar Papel do Usuário"
         slug: "user-roles:revoke"
-        description: "Remover um papel de um usuário"
+        description: "Remove a role from a user"
         module: "authorization"
         resource: "user-role"
         action: "revoke"
+        risk-level: "HIGH"
+        is-system: true
+        is-active: true
+
+      - name: "Read Papel do Usuário"
+        slug: "user-roles:read"
+        description: "Read the roles assigned to a user"
+        module: "authorization"
+        resource: "user-role"
+        action: "read"
         risk-level: "HIGH"
         is-system: true
         is-active: true
