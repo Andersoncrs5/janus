@@ -1,6 +1,6 @@
 package org.janus.modules.identity.service.user;
 
-import org.janus.modules.identity.application.user.service.user.ExistsUserByEmailUseCase;
+import org.janus.modules.identity.application.user.service.ExistsUserByEmailUseCase;
 import org.janus.modules.identity.ports.out.UserRepository;
 import org.janus.shared.domain.result.Result;
 import org.junit.jupiter.api.BeforeEach;
@@ -13,9 +13,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 public class ExistsUserByEmailUseCaseTest {

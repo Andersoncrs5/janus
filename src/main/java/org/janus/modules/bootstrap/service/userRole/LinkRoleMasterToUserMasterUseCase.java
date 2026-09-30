@@ -1,16 +1,20 @@
 package org.janus.modules.bootstrap.service.userRole;
 
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.janus.modules.authorization.application.dto.userRole.request.CreateUserRoleDTO;
 import org.janus.modules.authorization.domain.entity.RoleEntity;
 import org.janus.modules.authorization.domain.entity.UserRoleEntity;
+import org.janus.modules.authorization.infrastructure.out.UserRoleRepository;
 import org.janus.modules.bootstrap.contract.IApplicationBootstrap;
 import org.janus.modules.bootstrap.gateway.BootstrapInBoundGateway;
 import org.janus.modules.identity.domain.entity.UserEntity;
+import org.janus.shared.domain.exception.InternalServerErrorException;
 import org.janus.shared.domain.result.Result;
 import org.janus.shared.infrastructure.properties.BootstrapProperties;
+import org.slf4j.helpers.MessageFormatter;
 
 @Slf4j
 @ApplicationScoped
@@ -19,23 +23,27 @@ public class LinkRoleMasterToUserMasterUseCase implements IApplicationBootstrap 
 
     private final BootstrapInBoundGateway gateway;
     private final BootstrapProperties properties;
+    private final UserRoleRepository repository;
 
     @Override
+    @Transactional
     public void execute() {
+        String masterEmail = properties.master().email();
+
         Result<UserEntity> userResult = gateway.userOutboundGateway()
                 .findUserByEmailUseCase().execute(properties.master().email());
 
         if (userResult.isFailure()) {
-            log.error("Failed to find master user during role assignment: {}", userResult.getFirstError());
-            return;
+            var msg = MessageFormatter.format("Failed to find master user with email '{}': {}", masterEmail, userResult.getFirstError()).getMessage();
+            throw new InternalServerErrorException(msg);
         }
 
         Result<RoleEntity> roleResult = gateway.roleOutboundGateway()
                 .findRoleByNameUseCase().execute("MASTER");
 
         if (roleResult.isFailure()) {
-            log.error("Failed to find 'MASTER' role during master assignment: {}", roleResult.getFirstError());
-            return;
+            var msg = MessageFormatter.format("Failed to find 'MASTER' role during master assignment: {}", roleResult.getFirstError()).getMessage();
+            throw new InternalServerErrorException(msg);
         }
 
         UserEntity user = userResult.getData();
@@ -45,8 +53,8 @@ public class LinkRoleMasterToUserMasterUseCase implements IApplicationBootstrap 
                 .existsByUserIdAndRoleIdUseCase().execute(user.getId(), role.getId());
 
         if (checkResult.isFailure()) {
-            log.error("Failed to check user-role existence: {}", checkResult.getFirstError());
-            return;
+            var msg = MessageFormatter.format("Failed to check user-role existence for user '{}': {}", user.getId(), checkResult.getFirstError()).getMessage();
+            throw new InternalServerErrorException(msg);
         }
 
         if (Boolean.TRUE.equals(checkResult.getData())) {
@@ -54,14 +62,12 @@ public class LinkRoleMasterToUserMasterUseCase implements IApplicationBootstrap 
             return;
         }
 
-        Result<UserRoleEntity> createResult = gateway.userRoleOutBoundGateway()
-                .createUserRoleUseCase()
-                .execute(new CreateUserRoleDTO(user.getId(), role.getId()));
+        UserRoleEntity userRole = new UserRoleEntity();
+        userRole.setRoleId(role.getId());
+        userRole.setUserId(user.getId());
+        userRole.setAssignedById(null);
 
-        if (createResult.isFailure()) {
-            log.error("Failed to link 'MASTER' role to master user: {}", createResult.getFirstError());
-            return;
-        }
+        UserRoleEntity inserted = repository.insert(userRole);
 
         log.info("Role 'MASTER' successfully linked to master user (ID: {}).", user.getId());
     }

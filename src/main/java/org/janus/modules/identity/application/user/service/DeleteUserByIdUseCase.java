@@ -1,19 +1,19 @@
-package org.janus.modules.identity.application.user.service.user;
+package org.janus.modules.identity.application.user.service;
 
 import jakarta.enterprise.context.ApplicationScoped;
-import lombok.RequiredArgsConstructor;
-import org.janus.modules.identity.ports.out.UserRepository;
+import jakarta.inject.Inject;
 import org.janus.modules.identity.ports.in.user.IDeleteUserByIdUseCase;
+import org.janus.modules.identity.ports.out.UserRepository;
 import org.janus.shared.domain.result.Result;
 import org.janus.shared.infrastructure.persistence.tx.ResultTransaction;
 
 import java.util.UUID;
 
 @ApplicationScoped
-@RequiredArgsConstructor
 public class DeleteUserByIdUseCase implements IDeleteUserByIdUseCase {
 
-    private final UserRepository repository;
+    @Inject
+    private UserRepository repository;
 
     @Override
     @ResultTransaction

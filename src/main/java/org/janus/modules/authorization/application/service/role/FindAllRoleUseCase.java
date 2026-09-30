@@ -16,7 +16,6 @@ public class FindAllRoleUseCase implements IFindAllRoleUseCase {
     private final RoleRepository repository;
 
     @Override
-    @ResultTransaction
     public Page<RoleEntity> execute(RoleFilterDTO dto) {
         return repository.findAll(dto);
     }

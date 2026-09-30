@@ -1,6 +1,6 @@
 package org.janus.modules.identity.service.user;
 
-import org.janus.modules.identity.application.user.service.user.FindUserByEmailUseCase;
+import org.janus.modules.identity.application.user.service.FindUserByEmailUseCase;
 import org.janus.modules.identity.domain.entity.UserEntity;
 import org.janus.modules.identity.ports.out.UserRepository;
 import org.janus.shared.domain.result.Result;

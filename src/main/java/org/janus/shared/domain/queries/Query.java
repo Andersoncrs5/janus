@@ -44,13 +44,6 @@ public class Query {
             return this;
         }
 
-        public Select where(String column, Object value) {
-            if (value != null) {
-                this.conditions.add(column + " = ?");
-                this.parameters.add(value);
-            }
-            return this;
-        }
 
         public Select limit(int limit) {
             this.limit = limit;

@@ -7,8 +7,10 @@ import org.janus.modules.authorization.application.dto.role.request.CreateRoleDT
 import org.janus.modules.authorization.domain.entity.RoleEntity;
 import org.janus.modules.bootstrap.contract.IApplicationBootstrap;
 import org.janus.modules.bootstrap.gateway.BootstrapInBoundGateway;
+import org.janus.shared.domain.exception.InternalServerErrorException;
 import org.janus.shared.domain.result.Result;
 import org.janus.shared.infrastructure.properties.BootstrapProperties;
+import org.slf4j.helpers.MessageFormatter;
 
 @Slf4j
 @ApplicationScoped
@@ -21,16 +23,15 @@ public class CreateRolesUseCase implements IApplicationBootstrap {
     @Override
     public void execute() {
         if (properties.roles() == null || properties.roles().isEmpty()) {
-            log.info("No initial roles defined for bootstrap.");
-            return;
+            throw new InternalServerErrorException("No initial roles defined for bootstrap.");
         }
 
         for (BootstrapProperties.RoleConfig item : properties.roles()) {
             Result<Boolean> existsResult = this.gateway.existsRoleByNameUseCase().execute(item.name());
 
             if (existsResult.isFailure()) {
-                log.error("Failed to check existence for role '{}': {}", item.name(), existsResult.getFirstError());
-                continue;
+                var msg = MessageFormatter.format("Failed to check existence for role '{}': {}", item.name(), existsResult.getFirstError()).getMessage();
+                throw new InternalServerErrorException(msg);
             }
 
             if (Boolean.TRUE.equals(existsResult.getData())) {
@@ -47,8 +48,8 @@ public class CreateRolesUseCase implements IApplicationBootstrap {
             Result<RoleEntity> createResult = gateway.createRoleUseCase().execute(dto);
 
             if (createResult.isFailure()) {
-                log.error("Failed to create role '{}': {}", item.name(), createResult.getFirstError());
-                continue;
+                var msg = MessageFormatter.format("Failed to create role '{}': {}", item.name(), createResult.getFirstError()).getMessage();
+                throw new InternalServerErrorException(msg);
             }
 
             log.info("Role '{}' created successfully with ID: {}", item.name(), createResult.getData().getId());

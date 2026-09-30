@@ -51,7 +51,13 @@ public class IdempotencyFilter implements ContainerRequestFilter {
             return;
         }
 
-        String consumerSource = requestContext.getMethod() + ":" + requestContext.getUriInfo().getPath();
+        String path = requestContext.getUriInfo().getPath();
+
+        if (requestContext.getUriInfo().getPath().length() > 100) {
+            path = requestContext.getUriInfo().getPath().substring(0, 50);
+        }
+
+        String consumerSource = requestContext.getMethod() + ":" + path;
 
         if (idempotencyService.isProcessed(messageId, consumerSource)) {
             abortWithResponse(requestContext, Response.Status.CONFLICT.getStatusCode(), "Request with this Idempotency-Key has already been processed.");

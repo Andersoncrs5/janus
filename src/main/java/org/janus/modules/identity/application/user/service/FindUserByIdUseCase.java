@@ -1,10 +1,10 @@
-package org.janus.modules.identity.application.user.service.user;
+package org.janus.modules.identity.application.user.service;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import lombok.RequiredArgsConstructor;
 import org.janus.modules.identity.domain.entity.UserEntity;
-import org.janus.modules.identity.ports.out.UserRepository;
 import org.janus.modules.identity.ports.in.user.IFindUserByIdUseCase;
+import org.janus.modules.identity.ports.out.UserRepository;
 import org.janus.shared.domain.result.Result;
 
 import java.util.Optional;

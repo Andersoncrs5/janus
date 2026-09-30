@@ -40,7 +40,7 @@ class FindRoleByIdUseCaseTest {
         sampleRole.setName("ROLE_ADMIN");
         sampleRole.setSlug("admin");
         sampleRole.setDescription("Administrador do sistema");
-        sampleRole.setIsActive(true);
+        sampleRole.setActive(true);
     }
 
     @Nested

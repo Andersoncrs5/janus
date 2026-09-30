@@ -24,6 +24,7 @@ class ExistsRoleByNameUseCaseTest {
     private ExistsRoleByNameUseCase useCase;
 
     @Test
+
     @DisplayName("Deve retornar Result.success com valor true quando a role existir")
     void shouldReturnTrueWhenRoleExists() {
         String roleName = "ROLE_ADMIN";

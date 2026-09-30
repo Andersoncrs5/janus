@@ -17,6 +17,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -53,6 +54,7 @@ class CreateSessionUseCaseTest {
                 .ipAddress("127.0.0.1")
                 .userAgent("Mozilla/5.0")
                 .isRevoked(false)
+                .expiresAt(OffsetDateTime.now())
                 .build();
     }
 
@@ -63,10 +65,8 @@ class CreateSessionUseCaseTest {
         @Test
         @DisplayName("Should return 400 Bad Request when DTO is null")
         void shouldReturn400WhenDtoIsNull() {
-            // Act
             Result<SessionEntity> result = useCase.execute(null);
 
-            // Assert
             assertNotNull(result);
             assertFalse(result.isSuccess());
             assertEquals(400, result.getStatusCode());
@@ -77,7 +77,6 @@ class CreateSessionUseCaseTest {
         @Test
         @DisplayName("Should return 400 Bad Request when userId is null")
         void shouldReturn400WhenUserIdIsNull() {
-            // Arrange
             CreateSessionDTO invalidDto = new CreateSessionDTO(
                     null,
                     "127.0.0.1",
@@ -85,17 +84,14 @@ class CreateSessionUseCaseTest {
                     60L
             );
 
-            // Act
             Result<SessionEntity> result = useCase.execute(invalidDto);
 
-            // Assert
             assertNotNull(result);
             assertFalse(result.isSuccess());
             assertEquals(400, result.getStatusCode());
             assertTrue(result.getFirstError().contains("User ID cannot be null"));
             verifyNoInteractions(mapper, repository);
         }
-
     }
 
     @Nested
@@ -105,14 +101,11 @@ class CreateSessionUseCaseTest {
         @Test
         @DisplayName("Should successfully create a session")
         void shouldCreateSessionSuccessfully() {
-            // Arrange
             when(mapper.toEntity(createSessionDTO)).thenReturn(sessionEntity);
             when(repository.insert(sessionEntity)).thenReturn(sessionEntity);
 
-            // Act
             Result<SessionEntity> result = useCase.execute(createSessionDTO);
 
-            // Assert
             assertNotNull(result);
             assertTrue(result.isSuccess());
             assertEquals(201, result.getStatusCode());
@@ -126,19 +119,17 @@ class CreateSessionUseCaseTest {
         @Test
         @DisplayName("Should set isRevoked to false when mapped entity has null isRevoked")
         void shouldSetIsRevokedToFalseWhenNull() {
-            // Arrange
             SessionEntity entityWithNullRevoked = SessionEntity.builder()
                     .userId(createSessionDTO.userId())
                     .isRevoked(null)
+                    .expiresAt(OffsetDateTime.now())
                     .build();
 
             when(mapper.toEntity(createSessionDTO)).thenReturn(entityWithNullRevoked);
             when(repository.insert(entityWithNullRevoked)).thenReturn(entityWithNullRevoked);
 
-            // Act
             Result<SessionEntity> result = useCase.execute(createSessionDTO);
 
-            // Assert
             assertNotNull(result);
             assertTrue(result.isSuccess());
             assertFalse(entityWithNullRevoked.getIsRevoked());
@@ -153,16 +144,13 @@ class CreateSessionUseCaseTest {
         @Test
         @DisplayName("Should return 404 Not Found when foreign key user constraint fails (fk_sessions_user)")
         void shouldReturn404WhenUserDoesNotExist() {
-            // Arrange
             String errorMessage = "Key (user_id)=(...) is not present in table users. Constraint: fk_sessions_user";
             when(mapper.toEntity(createSessionDTO)).thenReturn(sessionEntity);
             when(repository.insert(sessionEntity))
                     .thenThrow(new DataIntegrityViolationException(errorMessage));
 
-            // Act
             Result<SessionEntity> result = useCase.execute(createSessionDTO);
 
-            // Assert
             assertNotNull(result);
             assertFalse(result.isSuccess());
             assertEquals(404, result.getStatusCode());
@@ -172,16 +160,13 @@ class CreateSessionUseCaseTest {
         @Test
         @DisplayName("Should return 400 Bad Request when check constraint ck_sessions_expires_after_created fails")
         void shouldReturn400WhenExpiresBeforeCreated() {
-            // Arrange
             String errorMessage = "Constraint violation: ck_sessions_expires_after_created";
             when(mapper.toEntity(createSessionDTO)).thenReturn(sessionEntity);
             when(repository.insert(sessionEntity))
                     .thenThrow(new DataIntegrityViolationException(errorMessage));
 
-            // Act
             Result<SessionEntity> result = useCase.execute(createSessionDTO);
 
-            // Assert
             assertNotNull(result);
             assertFalse(result.isSuccess());
             assertEquals(400, result.getStatusCode());
@@ -191,16 +176,13 @@ class CreateSessionUseCaseTest {
         @Test
         @DisplayName("Should return 400 Bad Request when check constraint ck_sessions_version fails")
         void shouldReturn400WhenVersionIsNegative() {
-            // Arrange
             String errorMessage = "Constraint violation: ck_sessions_version";
             when(mapper.toEntity(createSessionDTO)).thenReturn(sessionEntity);
             when(repository.insert(sessionEntity))
                     .thenThrow(new DataIntegrityViolationException(errorMessage));
 
-            // Act
             Result<SessionEntity> result = useCase.execute(createSessionDTO);
 
-            // Assert
             assertNotNull(result);
             assertFalse(result.isSuccess());
             assertEquals(400, result.getStatusCode());
@@ -210,15 +192,12 @@ class CreateSessionUseCaseTest {
         @Test
         @DisplayName("Should delegate to DatabaseConstraintHandler when exception message is null")
         void shouldDelegateToHandlerWhenMessageIsNull() {
-            // Arrange
             when(mapper.toEntity(createSessionDTO)).thenReturn(sessionEntity);
             when(repository.insert(sessionEntity))
                     .thenThrow(new DataIntegrityViolationException(null));
 
-            // Act
             Result<SessionEntity> result = useCase.execute(createSessionDTO);
 
-            // Assert
             assertNotNull(result);
             assertFalse(result.isSuccess());
         }
@@ -226,15 +205,12 @@ class CreateSessionUseCaseTest {
         @Test
         @DisplayName("Should delegate to DatabaseConstraintHandler on unknown constraint")
         void shouldDelegateToHandlerOnUnknownConstraint() {
-            // Arrange
             when(mapper.toEntity(createSessionDTO)).thenReturn(sessionEntity);
             when(repository.insert(sessionEntity))
                     .thenThrow(new DataIntegrityViolationException("some_other_constraint"));
 
-            // Act
             Result<SessionEntity> result = useCase.execute(createSessionDTO);
 
-            // Assert
             assertNotNull(result);
             assertFalse(result.isSuccess());
         }
@@ -247,12 +223,10 @@ class CreateSessionUseCaseTest {
         @Test
         @DisplayName("Should throw InternalServerErrorException when generic exception occurs")
         void shouldThrowInternalServerErrorExceptionOnGenericFailure() {
-            // Arrange
             when(mapper.toEntity(createSessionDTO)).thenReturn(sessionEntity);
             when(repository.insert(sessionEntity))
                     .thenThrow(new RuntimeException("Database connection timeout"));
 
-            // Act & Assert
             InternalServerErrorException exception = assertThrows(
                     InternalServerErrorException.class,
                     () -> useCase.execute(createSessionDTO)

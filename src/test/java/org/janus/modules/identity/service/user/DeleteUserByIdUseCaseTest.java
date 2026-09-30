@@ -3,7 +3,7 @@ package org.janus.modules.identity.service.user;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
-import org.janus.modules.identity.application.user.service.user.DeleteUserByIdUseCase;
+import org.janus.modules.identity.application.user.service.DeleteUserByIdUseCase;
 import org.janus.modules.identity.ports.out.UserRepository;
 import org.janus.shared.domain.result.Result;
 import org.junit.jupiter.api.BeforeEach;

@@ -1,4 +1,4 @@
-package org.janus.modules.identity.application.user.service.user;
+package org.janus.modules.identity.application.user.service;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import lombok.RequiredArgsConstructor;

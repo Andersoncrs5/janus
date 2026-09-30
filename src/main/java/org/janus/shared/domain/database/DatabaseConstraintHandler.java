@@ -2,8 +2,13 @@ package org.janus.shared.domain.database;
 
 import org.janus.shared.domain.exception.DataIntegrityViolationException;
 import org.janus.shared.domain.result.Result;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class DatabaseConstraintHandler {
+
+
+    private static final Logger log = LoggerFactory.getLogger(DatabaseConstraintHandler.class);
 
     private DatabaseConstraintHandler() {
     }
@@ -31,6 +36,7 @@ public final class DatabaseConstraintHandler {
         }
 
         if (lowerMessage.contains("foreign key constraint") || lowerMessage.contains("is still referenced")) {
+            log.warn("Fall in fk handle inside DatabaseConstraintHandler {}", message);
             return Result.failure("Referenced resource does not exist or is currently in use", 409);
         }
 

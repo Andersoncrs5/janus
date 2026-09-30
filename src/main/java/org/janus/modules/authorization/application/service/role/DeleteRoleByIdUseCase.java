@@ -25,7 +25,7 @@ public class DeleteRoleByIdUseCase implements IDeleteRoleByIdUseCase {
             return Result.notFound("Role not found");
         }
 
-        if (role.getIsSystem()) {
+        if (role.getSystem()) {
             return Result.failure("This role is of system", 403);
         }
 

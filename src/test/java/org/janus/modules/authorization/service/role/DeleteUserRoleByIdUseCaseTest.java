@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-class DeleteRoleByIdUseCaseTest {
+class DeleteUserRoleByIdUseCaseTest {
 
     @Mock
     private RoleRepository repository;
@@ -35,7 +35,7 @@ class DeleteRoleByIdUseCaseTest {
     void setUp() {
         roleId = UUID.randomUUID();
         roleEntity = new RoleEntity();
-        roleEntity.setIsSystem(false);
+        roleEntity.setSystem(false);
     }
 
     @Nested
@@ -87,7 +87,7 @@ class DeleteRoleByIdUseCaseTest {
         @DisplayName("Should return failure with 403 status when attempting to delete a system role")
         void shouldReturnForbiddenWhenRoleIsSystemRole() {
             // Arrange
-            roleEntity.setIsSystem(true);
+            roleEntity.setSystem(true);
             when(repository.findById(roleId)).thenReturn(Optional.of(roleEntity));
 
             // Act
