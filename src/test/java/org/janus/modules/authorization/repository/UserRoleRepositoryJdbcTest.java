@@ -272,4 +272,27 @@ public class UserRoleRepositoryJdbcTest extends BaseTest {
             assertThat(isActive).isFalse();
         }
     }
+
+    @Nested
+    class FindRoleNameById {
+
+        @Test
+        void shouldReturnRoleNameWhenFound() {
+            UserEntity user = initUser();
+            RoleEntity role = initRole();
+            UserRoleEntity userRole = initUserRole(user.getId(), role.getId(), null);
+
+            Optional<String> roleName = userRoleRepository.findRoleNameById(userRole.getId());
+
+            assertThat(roleName).isPresent();
+            assertThat(roleName.get()).isEqualTo(role.getName());
+        }
+
+        @Test
+        void shouldReturnEmptyWhenRoleNotFound() {
+            Optional<String> roleName = userRoleRepository.findRoleNameById(UUID.randomUUID());
+
+            assertThat(roleName).isEmpty();
+        }
+    }
 }

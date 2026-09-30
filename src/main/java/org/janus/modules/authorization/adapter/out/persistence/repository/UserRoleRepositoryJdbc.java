@@ -201,8 +201,8 @@ public class UserRoleRepositoryJdbc
                     role.setName(rs.getString("name"));
                     role.setSlug(rs.getString("slug"));
                     role.setDescription(rs.getString("description"));
-                    role.setIsActive(rs.getBoolean("is_active"));
-                    role.setIsSystem(rs.getBoolean("is_system"));
+                    role.setActive(rs.getBoolean("is_active"));
+                    role.setSystem(rs.getBoolean("is_system"));
                     role.setVersion(rs.getLong("version"));
                     role.setCreatedAt(rs.getObject("created_at", OffsetDateTime.class));
                     role.setUpdatedAt(rs.getObject("updated_at", OffsetDateTime.class));
@@ -216,5 +216,33 @@ public class UserRoleRepositoryJdbc
         }
 
         return roles;
+    }
+
+    @Override
+    public Optional<String> findRoleNameById(UUID id) {
+        String sql = """
+                    SELECT r.name
+                    FROM user_roles ur
+                    INNER JOIN roles r ON ur.role_id = r.id
+                    WHERE ur.id = ?
+                      AND ur.deleted_at IS NULL
+                      AND r.deleted_at IS NULL
+                """;
+
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setObject(1, id);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return Optional.ofNullable(rs.getString("name"));
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Error fetching role name for user_role id: " + id, e);
+        }
+
+        return Optional.empty();
     }
 }

@@ -35,4 +35,6 @@ public interface UserRoleRepository extends GenericRepository<UserRoleEntity, UU
             UUID userId,
             UUID roleId
     );
+
+    Optional<String> findRoleNameById(UUID id);
 }
