@@ -2,7 +2,7 @@ package org.janus.modules.authentication.application.service.refreshToken;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.janus.modules.authentication.port.in.refreshToken.IDeleteRefreshTokenById;
+import org.janus.modules.authentication.port.in.refreshToken.IDeleteRefreshTokenByIdUseCase;
 import org.janus.modules.authentication.port.out.RefreshTokenRepository;
 import org.janus.shared.domain.exception.InternalServerErrorException;
 import org.janus.shared.domain.result.Result;
@@ -11,7 +11,7 @@ import org.janus.shared.infrastructure.persistence.tx.ResultTransaction;
 import java.util.UUID;
 
 @ApplicationScoped
-public class DeleteRefreshTokenById implements IDeleteRefreshTokenById {
+public class DeleteRefreshTokenById implements IDeleteRefreshTokenByIdUseCase {
 
     private final RefreshTokenRepository repository;
 

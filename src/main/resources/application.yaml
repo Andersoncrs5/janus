@@ -82,6 +82,26 @@ janus:
 
     permissions:
 
+      - name: "Revogar Refresh Tokens"
+        slug: "refresh-tokens:revoke"
+        description: "Revoke all refresh tokens belonging to the authenticated user"
+        module: "authentication"
+        resource: "session"
+        action: "revoke"
+        risk-level: "HIGH"
+        is-system: true
+        is-active: true
+
+      - name: "Remover Refresh Token"
+        slug: "refresh-tokens:delete"
+        description: "Delete a specific refresh token by its identifier"
+        module: "authentication"
+        resource: "session"
+        action: "delete"
+        risk-level: "CRITICAL"
+        is-system: true
+        is-active: true
+
       # --- Users ---
       - name: "Criar Usuário"
         slug: "users:create"
