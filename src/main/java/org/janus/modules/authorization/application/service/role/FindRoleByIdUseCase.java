@@ -19,6 +19,10 @@ public class FindRoleByIdUseCase implements IFindRoleByIdUseCase {
     @Override
     @ResultTransaction
     public Result<RoleEntity> execute(UUID id) {
+        if (id == null) {
+            return Result.badRequest("ID is required");
+        }
+
         RoleEntity role = repository.findById(id).orElse(null);
 
         if (role == null) {

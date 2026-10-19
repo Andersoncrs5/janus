@@ -42,6 +42,10 @@ public class CreateRoleUseCase
     @Override
     @ResultTransaction
     public Result<RoleEntity> execute(CreateRoleDTO dto) {
+        if (dto == null) {
+            return Result.badRequest("Role data must be provided");
+        }
+
         return executeSafely(() -> {
             RoleEntity role = mapper.toEntity(dto);
             RoleEntity saved = repository.insert(role);

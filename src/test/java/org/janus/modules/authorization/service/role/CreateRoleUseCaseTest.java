@@ -4,24 +4,29 @@ import org.janus.modules.authorization.application.dto.role.request.CreateRoleDT
 import org.janus.modules.authorization.application.mapper.RoleMapper;
 import org.janus.modules.authorization.application.service.role.CreateRoleUseCase;
 import org.janus.modules.authorization.domain.entity.RoleEntity;
+import org.janus.modules.authorization.infrastructure.in.userRole.ICreateUserRoleUseCase;
 import org.janus.modules.authorization.infrastructure.out.RoleRepository;
+import org.janus.modules.identity.ports.in.user.IFindUserByEmailUseCase;
 import org.janus.shared.domain.exception.DataIntegrityViolationException;
 import org.janus.shared.domain.exception.InternalServerErrorException;
 import org.janus.shared.domain.result.Result;
+import org.janus.shared.infrastructure.properties.BootstrapProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("CreateRoleUseCase Tests")
+@DisplayName("CreateRoleUseCase")
 class CreateRoleUseCaseTest {
 
     @Mock
@@ -29,6 +34,15 @@ class CreateRoleUseCaseTest {
 
     @Mock
     private RoleMapper mapper;
+
+    @Mock
+    private IFindUserByEmailUseCase findUserByEmail;
+
+    @Mock
+    private ICreateUserRoleUseCase createUserRole;
+
+    @Mock
+    private BootstrapProperties properties;
 
     @InjectMocks
     private CreateRoleUseCase useCase;
@@ -45,6 +59,34 @@ class CreateRoleUseCaseTest {
         );
 
         roleEntity = new RoleEntity();
+        roleEntity.setName(createRoleDTO.name());
+        roleEntity.setDescription(createRoleDTO.description());
+        roleEntity.setSlug(createRoleDTO.slug());
+    }
+
+    @Nested
+    @DisplayName("Validation Scenarios")
+    class ValidationScenarios {
+
+        @Test
+        @DisplayName("Should return 400 when DTO is null")
+        void shouldReturnBadRequestWhenDtoIsNull() {
+            Result<RoleEntity> result = useCase.execute(null);
+
+            assertThat(result).isNotNull();
+            assertThat(result.isFailure()).isTrue();
+            assertThat(result.getStatus()).isEqualTo(400);
+            assertThat(result.getFirstError())
+                    .isEqualTo("Role data must be provided");
+
+            verifyNoInteractions(
+                    repository,
+                    mapper,
+                    findUserByEmail,
+                    createUserRole,
+                    properties
+            );
+        }
     }
 
     @Nested
@@ -52,203 +94,182 @@ class CreateRoleUseCaseTest {
     class SuccessScenarios {
 
         @Test
-        @DisplayName("Should successfully create a role")
+        @DisplayName("Should create a role successfully and return 201")
         void shouldCreateRoleSuccessfully() {
-            // Arrange
             when(mapper.toEntity(createRoleDTO))
                     .thenReturn(roleEntity);
 
             when(repository.insert(roleEntity))
                     .thenReturn(roleEntity);
 
-            // Act
             Result<RoleEntity> result =
                     useCase.execute(createRoleDTO);
 
-            assertNotNull(result);
-            assertTrue(result.isSuccess());
-            assertEquals(roleEntity, result.getValue());
+            assertThat(result).isNotNull();
+            assertThat(result.isSuccess()).isTrue();
+            assertThat(result.getStatus()).isEqualTo(201);
+            assertThat(result.getData()).isSameAs(roleEntity);
 
-            verify(mapper, times(1))
+            verify(mapper).toEntity(createRoleDTO);
+            verify(repository).insert(roleEntity);
+
+            verifyNoInteractions(
+                    findUserByEmail,
+                    createUserRole,
+                    properties
+            );
+        }
+
+        @Test
+        @DisplayName("Should map DTO before inserting role")
+        void shouldMapBeforeInsert() {
+            when(mapper.toEntity(createRoleDTO))
+                    .thenReturn(roleEntity);
+
+            when(repository.insert(roleEntity))
+                    .thenReturn(roleEntity);
+
+            useCase.execute(createRoleDTO);
+
+            InOrder inOrder = inOrder(mapper, repository);
+
+            inOrder.verify(mapper)
                     .toEntity(createRoleDTO);
 
-            verify(repository, times(1))
+            inOrder.verify(repository)
                     .insert(roleEntity);
-
-            verifyNoMoreInteractions(
-                    mapper,
-                    repository
-            );
         }
     }
 
     @Nested
-    @DisplayName("Data Integrity Exception Scenarios")
+    @DisplayName("Data Integrity Scenarios")
     class DataIntegrityScenarios {
 
         @Test
         @DisplayName("Should return 409 when slug already exists")
-        void shouldReturn409WhenSlugAlreadyExists() {
-            // Arrange
+        void shouldReturnConflictWhenSlugAlreadyExists() {
             when(mapper.toEntity(createRoleDTO))
                     .thenReturn(roleEntity);
 
             when(repository.insert(roleEntity))
                     .thenThrow(
                             new DataIntegrityViolationException(
-                                    "Data integrity violation: "
-                                            + "uk_roles_slug constraint failed"
+                                    "duplicate key value violates unique constraint \"uk_roles_slug\""
                             )
                     );
 
-            // Act
             Result<RoleEntity> result =
                     useCase.execute(createRoleDTO);
 
-            // Assert
-            assertNotNull(result);
-            assertFalse(result.isSuccess());
-            assertEquals(409, result.getStatusCode());
-            assertEquals(
-                    "Role already exists with this slug",
-                    result.getFirstError()
-            );
+            assertThat(result).isNotNull();
+            assertThat(result.isFailure()).isTrue();
+            assertThat(result.getStatus()).isEqualTo(409);
+            assertThat(result.getFirstError())
+                    .isEqualTo("Role already exists with this slug");
 
-            verify(mapper)
-                    .toEntity(createRoleDTO);
-
-            verify(repository)
-                    .insert(roleEntity);
+            verify(mapper).toEntity(createRoleDTO);
+            verify(repository).insert(roleEntity);
         }
 
         @Test
         @DisplayName("Should return 409 when name already exists")
-        void shouldReturn409WhenNameAlreadyExists() {
-            // Arrange
+        void shouldReturnConflictWhenNameAlreadyExists() {
             when(mapper.toEntity(createRoleDTO))
                     .thenReturn(roleEntity);
 
             when(repository.insert(roleEntity))
                     .thenThrow(
                             new DataIntegrityViolationException(
-                                    "Data integrity violation: "
-                                            + "uk_roles_name constraint failed"
+                                    "duplicate key value violates unique constraint \"uk_roles_name\""
                             )
                     );
 
-            // Act
             Result<RoleEntity> result =
                     useCase.execute(createRoleDTO);
 
-            // Assert
-            assertNotNull(result);
-            assertFalse(result.isSuccess());
-            assertEquals(409, result.getStatusCode());
-            assertEquals(
-                    "Role already exists with this name",
-                    result.getFirstError()
-            );
+            assertThat(result).isNotNull();
+            assertThat(result.isFailure()).isTrue();
+            assertThat(result.getStatus()).isEqualTo(409);
+            assertThat(result.getFirstError())
+                    .isEqualTo("Role already exists with this name");
 
-            verify(mapper)
-                    .toEntity(createRoleDTO);
-
-            verify(repository)
-                    .insert(roleEntity);
+            verify(mapper).toEntity(createRoleDTO);
+            verify(repository).insert(roleEntity);
         }
 
         @Test
-        @DisplayName("Should return 400 when role name is empty")
-        void shouldReturn400WhenNameIsEmpty() {
-            // Arrange
+        @DisplayName("Should return 400 when role name violates check constraint")
+        void shouldReturnBadRequestWhenNameIsEmpty() {
             when(mapper.toEntity(createRoleDTO))
                     .thenReturn(roleEntity);
 
             when(repository.insert(roleEntity))
                     .thenThrow(
                             new DataIntegrityViolationException(
-                                    "Data integrity violation: "
-                                            + "ck_roles_name_not_empty "
-                                            + "constraint failed"
+                                    "violates check constraint \"ck_roles_name_not_empty\""
                             )
                     );
 
-            // Act
             Result<RoleEntity> result =
                     useCase.execute(createRoleDTO);
 
-            // Assert
-            assertNotNull(result);
-            assertFalse(result.isSuccess());
-            assertEquals(400, result.getStatusCode());
-            assertEquals(
-                    "Role name cannot be empty",
-                    result.getFirstError()
-            );
+            assertThat(result).isNotNull();
+            assertThat(result.isFailure()).isTrue();
+            assertThat(result.getStatus()).isEqualTo(400);
+            assertThat(result.getFirstError())
+                    .isEqualTo("Role name cannot be empty");
         }
 
         @Test
-        @DisplayName("Should return 400 when version is invalid")
-        void shouldReturn400WhenVersionIsInvalid() {
-            // Arrange
+        @DisplayName("Should return 400 when role version is invalid")
+        void shouldReturnBadRequestWhenVersionIsInvalid() {
             when(mapper.toEntity(createRoleDTO))
                     .thenReturn(roleEntity);
 
             when(repository.insert(roleEntity))
                     .thenThrow(
                             new DataIntegrityViolationException(
-                                    "Data integrity violation: "
-                                            + "ck_roles_version "
-                                            + "constraint failed"
+                                    "violates check constraint \"ck_roles_version\""
                             )
                     );
 
-            // Act
             Result<RoleEntity> result =
                     useCase.execute(createRoleDTO);
 
-            // Assert
-            assertNotNull(result);
-            assertFalse(result.isSuccess());
-            assertEquals(400, result.getStatusCode());
-            assertEquals(
-                    "Invalid record version",
-                    result.getFirstError()
-            );
+            assertThat(result).isNotNull();
+            assertThat(result.isFailure()).isTrue();
+            assertThat(result.getStatus()).isEqualTo(400);
+            assertThat(result.getFirstError())
+                    .isEqualTo("Invalid record version");
         }
 
         @Test
         @DisplayName("Should delegate unknown constraint to DatabaseConstraintHandler")
-        void shouldDelegateToHandlerOnUnknownConstraint() {
-            // Arrange
+        void shouldDelegateUnknownConstraint() {
             when(mapper.toEntity(createRoleDTO))
                     .thenReturn(roleEntity);
 
             when(repository.insert(roleEntity))
                     .thenThrow(
                             new DataIntegrityViolationException(
-                                    "some_other_constraint"
+                                    "some_unknown_constraint"
                             )
                     );
 
-            // Act
             Result<RoleEntity> result =
                     useCase.execute(createRoleDTO);
 
-            // Assert
-            assertNotNull(result);
-            assertFalse(result.isSuccess());
+            assertThat(result).isNotNull();
+            assertThat(result.isFailure()).isTrue();
+            assertThat(result.getFirstError()).isNotBlank();
 
-            verify(mapper)
-                    .toEntity(createRoleDTO);
-
-            verify(repository)
-                    .insert(roleEntity);
+            verify(mapper).toEntity(createRoleDTO);
+            verify(repository).insert(roleEntity);
         }
 
         @Test
         @DisplayName("Should delegate to DatabaseConstraintHandler when exception message is null")
-        void shouldDelegateToHandlerWhenMessageIsNull() {
-            // Arrange
+        void shouldDelegateWhenExceptionMessageIsNull() {
             when(mapper.toEntity(createRoleDTO))
                     .thenReturn(roleEntity);
 
@@ -257,19 +278,15 @@ class CreateRoleUseCaseTest {
                             new DataIntegrityViolationException(null)
                     );
 
-            // Act
             Result<RoleEntity> result =
                     useCase.execute(createRoleDTO);
 
-            // Assert
-            assertNotNull(result);
-            assertFalse(result.isSuccess());
+            assertThat(result).isNotNull();
+            assertThat(result.isFailure()).isTrue();
+            assertThat(result.getFirstError()).isNotBlank();
 
-            verify(mapper)
-                    .toEntity(createRoleDTO);
-
-            verify(repository)
-                    .insert(roleEntity);
+            verify(mapper).toEntity(createRoleDTO);
+            verify(repository).insert(roleEntity);
         }
     }
 
@@ -279,8 +296,7 @@ class CreateRoleUseCaseTest {
 
         @Test
         @DisplayName("Should throw InternalServerErrorException when mapper fails")
-        void shouldThrowInternalServerErrorExceptionWhenMapperFails() {
-            // Arrange
+        void shouldThrowInternalServerErrorWhenMapperFails() {
             when(mapper.toEntity(createRoleDTO))
                     .thenThrow(
                             new RuntimeException(
@@ -288,28 +304,21 @@ class CreateRoleUseCaseTest {
                             )
                     );
 
-            // Act & Assert
-            InternalServerErrorException exception =
-                    assertThrows(
-                            InternalServerErrorException.class,
-                            () -> useCase.execute(createRoleDTO)
+            assertThatThrownBy(
+                    () -> useCase.execute(createRoleDTO)
+            )
+                    .isInstanceOf(InternalServerErrorException.class)
+                    .hasMessageContaining(
+                            "Unexpected mapper failure"
                     );
 
-            assertEquals(
-                    "Unexpected mapper failure",
-                    exception.getMessage()
-            );
-
-            verify(mapper)
-                    .toEntity(createRoleDTO);
-
+            verify(mapper).toEntity(createRoleDTO);
             verifyNoInteractions(repository);
         }
 
         @Test
         @DisplayName("Should throw InternalServerErrorException when repository fails")
-        void shouldThrowInternalServerErrorExceptionOnRepositoryFailure() {
-            // Arrange
+        void shouldThrowInternalServerErrorWhenRepositoryFails() {
             when(mapper.toEntity(createRoleDTO))
                     .thenReturn(roleEntity);
 
@@ -320,73 +329,16 @@ class CreateRoleUseCaseTest {
                             )
                     );
 
-            // Act & Assert
-            InternalServerErrorException exception =
-                    assertThrows(
-                            InternalServerErrorException.class,
-                            () -> useCase.execute(createRoleDTO)
-                    );
-
-            assertEquals(
-                    "Database connection timeout",
-                    exception.getMessage()
-            );
-
-            verify(mapper)
-                    .toEntity(createRoleDTO);
-
-            verify(repository)
-                    .insert(roleEntity);
-        }
-    }
-
-    @Nested
-    @DisplayName("Dependency Interaction Scenarios")
-    class DependencyInteractionScenarios {
-
-        @Test
-        @DisplayName("Should map DTO before inserting role")
-        void shouldMapBeforeInsert() {
-            // Arrange
-            when(mapper.toEntity(createRoleDTO))
-                    .thenReturn(roleEntity);
-
-            when(repository.insert(roleEntity))
-                    .thenReturn(roleEntity);
-
-            // Act
-            useCase.execute(createRoleDTO);
-
-            // Assert
-            var inOrder = inOrder(mapper, repository);
-
-            inOrder.verify(mapper)
-                    .toEntity(createRoleDTO);
-
-            inOrder.verify(repository)
-                    .insert(roleEntity);
-        }
-
-        @Test
-        @DisplayName("Should not insert role when mapping fails")
-        void shouldNotInsertWhenMappingFails() {
-            // Arrange
-            when(mapper.toEntity(createRoleDTO))
-                    .thenThrow(
-                            new RuntimeException("Mapping failed")
-                    );
-
-            // Act
-            assertThrows(
-                    InternalServerErrorException.class,
+            assertThatThrownBy(
                     () -> useCase.execute(createRoleDTO)
-            );
+            )
+                    .isInstanceOf(InternalServerErrorException.class)
+                    .hasMessageContaining(
+                            "Database connection timeout"
+                    );
 
-            // Assert
-            verify(mapper)
-                    .toEntity(createRoleDTO);
-
-            verifyNoInteractions(repository);
+            verify(mapper).toEntity(createRoleDTO);
+            verify(repository).insert(roleEntity);
         }
     }
 }
