@@ -13,7 +13,8 @@ public enum PermissionResource {
     SYSTEM_SETTING("SYSTEM_SETTING"),
     SYSTEM_METRIC("SYSTEM_METRIC"),
     API_KEY("API_KEY"),
-    USER_ROLE("USER_ROLE");
+    USER_ROLE("USER_ROLE"),
+    INBOX("INBOX");
 
     private final String value;
 
