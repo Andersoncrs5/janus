@@ -645,6 +645,7 @@ class InboxRepositoryJdbcTest extends BaseTest {
 
         @Test
         void shouldReturnAllActiveInboxes() {
+            inboxRepository.deleteAll();
 
             InboxEntity first =
                     createSampleInbox();
@@ -694,6 +695,7 @@ class InboxRepositoryJdbcTest extends BaseTest {
 
         @Test
         void shouldReturnEmptyWhenNoActiveInboxesExist() {
+            inboxRepository.deleteAll();
 
             List<InboxEntity> result =
                     inboxRepository.findAll();
@@ -713,6 +715,7 @@ class InboxRepositoryJdbcTest extends BaseTest {
 
         @Test
         void shouldFilterByMessageKey() {
+            inboxRepository.deleteAll();
 
             InboxEntity matching =
                     createSampleInbox();
@@ -774,6 +777,7 @@ class InboxRepositoryJdbcTest extends BaseTest {
 
         @Test
         void shouldFilterByConsumerGroup() {
+            inboxRepository.deleteAll();
 
             InboxEntity matching =
                     createSampleInbox();
@@ -810,6 +814,7 @@ class InboxRepositoryJdbcTest extends BaseTest {
 
         @Test
         void shouldFilterByStatus() {
+            inboxRepository.deleteAll();
 
             InboxEntity processing =
                     createSampleInbox();
@@ -848,6 +853,7 @@ class InboxRepositoryJdbcTest extends BaseTest {
 
         @Test
         void shouldFilterByMultipleStatuses() {
+            inboxRepository.deleteAll();
 
             InboxEntity processing =
                     createSampleInbox();
@@ -929,6 +935,7 @@ class InboxRepositoryJdbcTest extends BaseTest {
 
         @Test
         void shouldFilterByResponseCodeMin() {
+            inboxRepository.deleteAll();
 
             InboxEntity low =
                     createSampleInbox();
@@ -961,6 +968,7 @@ class InboxRepositoryJdbcTest extends BaseTest {
 
         @Test
         void shouldFilterByResponseCodeMax() {
+            inboxRepository.deleteAll();
 
             InboxEntity low =
                     createSampleInbox();
@@ -1032,6 +1040,7 @@ class InboxRepositoryJdbcTest extends BaseTest {
 
         @Test
         void shouldSupportPagination() {
+            inboxRepository.deleteAll();
 
             inboxRepository.insert(createSampleInbox());
             inboxRepository.insert(createSampleInbox());
@@ -1076,6 +1085,7 @@ class InboxRepositoryJdbcTest extends BaseTest {
 
         @Test
         void shouldReturnEmptyPageWhenOffsetExceedsTotal() {
+            inboxRepository.deleteAll();
 
             inboxRepository.insert(
                     createSampleInbox()
@@ -1100,6 +1110,7 @@ class InboxRepositoryJdbcTest extends BaseTest {
 
         @Test
         void shouldNotReturnDeletedInboxInPaginatedQuery() {
+            inboxRepository.deleteAll();
 
             InboxEntity active =
                     initInbox();
@@ -1356,6 +1367,7 @@ class InboxRepositoryJdbcTest extends BaseTest {
 
         @Test
         void shouldNotCountPreviouslyDeletedEntities() {
+            inboxRepository.deleteAll();
 
             InboxEntity deleted =
                     initInbox();
@@ -1798,6 +1810,7 @@ class InboxRepositoryJdbcTest extends BaseTest {
 
         @Test
         void shouldFilterByMaximumVersion() {
+            inboxRepository.deleteAll();
 
             InboxEntity first =
                     initInbox();
@@ -1826,6 +1839,7 @@ class InboxRepositoryJdbcTest extends BaseTest {
 
         @Test
         void shouldFilterByCreatedAtMin() {
+            inboxRepository.deleteAll();
 
             InboxEntity inbox =
                     initInbox();
@@ -1854,6 +1868,7 @@ class InboxRepositoryJdbcTest extends BaseTest {
 
         @Test
         void shouldFilterByCreatedAtMax() {
+            inboxRepository.deleteAll();
 
             InboxEntity inbox =
                     initInbox();
@@ -1876,6 +1891,7 @@ class InboxRepositoryJdbcTest extends BaseTest {
 
         @Test
         void shouldFilterByUpdatedAtMin() {
+            inboxRepository.deleteAll();
 
             InboxEntity inbox =
                     initInbox();
@@ -1898,6 +1914,7 @@ class InboxRepositoryJdbcTest extends BaseTest {
 
         @Test
         void shouldFilterByUpdatedAtMax() {
+            inboxRepository.deleteAll();
 
             InboxEntity inbox =
                     initInbox();
@@ -1928,6 +1945,7 @@ class InboxRepositoryJdbcTest extends BaseTest {
 
         @Test
         void shouldUseCreatedAtAsDefaultOrder() {
+            inboxRepository.deleteAll();
 
             InboxEntity first =
                     createSampleInbox();
@@ -1961,6 +1979,7 @@ class InboxRepositoryJdbcTest extends BaseTest {
 
         @Test
         void shouldUseCreatedAtWhenOrdersAreEmpty() {
+            inboxRepository.deleteAll();
 
             inboxRepository.insert(
                     createSampleInbox()

@@ -45,25 +45,14 @@ public class RefreshTokenRepositoryJdbc
         if (entity.getId() == null) {
             entity.setId(UUID.randomUUID());
         }
-
-        return new Query.Insert(getTableName())
-                .value("id", entity.getId())
-                .value("session_id", entity.getSessionId())
-                .value("user_id", entity.getUserId())
-                .value("token_hash", entity.getTokenHash())
-                .value("is_used", entity.getIsUsed() != null ? entity.getIsUsed() : Boolean.FALSE)
-                .value("replaced_by_token_id", entity.getReplacedByTokenId())
-                .value("is_revoked", entity.getIsRevoked() != null ? entity.getIsRevoked() : Boolean.FALSE)
-                .value("expires_at", entity.getExpiresAt())
-                .value("version", 0L)
-                .value("created_at", OffsetDateTime.now())
-                .value("updated_at", OffsetDateTime.now())
-                .executeAndMap(dataSource, List.of("version", "created_at", "updated_at"), rs -> {
-                    entity.setVersion(rs.getLong("version"));
-                    entity.setCreatedAt(rs.getObject("created_at", OffsetDateTime.class));
-                    entity.setUpdatedAt(rs.getObject("updated_at", OffsetDateTime.class));
-                    return entity;
-                });
+        OffsetDateTime createdAt = entity.getCreatedAt() != null ? entity.getCreatedAt() : OffsetDateTime.now();
+        OffsetDateTime updatedAt = entity.getUpdatedAt() != null ? entity.getUpdatedAt() : createdAt;
+        return new Query.Insert(getTableName()).value("id", entity.getId()).value("session_id", entity.getSessionId()).value("user_id", entity.getUserId()).value("token_hash", entity.getTokenHash()).value("is_used", entity.getIsUsed() != null ? entity.getIsUsed() : Boolean.FALSE).value("replaced_by_token_id", entity.getReplacedByTokenId()).value("is_revoked", entity.getIsRevoked() != null ? entity.getIsRevoked() : Boolean.FALSE).value("expires_at", entity.getExpiresAt()).value("version", 0L).value("created_at", createdAt).value("updated_at", updatedAt).executeAndMap(dataSource, List.of("version", "created_at", "updated_at"), rs -> {
+            entity.setVersion(rs.getLong("version"));
+            entity.setCreatedAt(rs.getObject("created_at", OffsetDateTime.class));
+            entity.setUpdatedAt(rs.getObject("updated_at", OffsetDateTime.class));
+            return entity;
+        });
     }
 
     @Override

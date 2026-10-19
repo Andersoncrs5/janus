@@ -371,6 +371,58 @@ janus:
         is-system: true
         is-active: true
 
+      # --- Reliability / Inbox ---
+
+      - name: "Visualizar Inbox"
+        slug: "reliability:inbox:read"
+        description: "View inbox message records and processing statuses"
+        module: "reliability"
+        resource: "inbox"
+        action: "read"
+        risk-level: "LOW"
+        is-system: true
+        is-active: true
+
+      - name: "Reprocessar Mensagem da Inbox"
+        slug: "reliability:inbox:reprocess"
+        description: "Manually reprocess an inbox message"
+        module: "reliability"
+        resource: "inbox"
+        action: "reprocess"
+        risk-level: "CRITICAL"
+        is-system: true
+        is-active: true
+
+      - name: "Tentar Novamente Mensagem da Inbox"
+        slug: "reliability:inbox:retry"
+        description: "Retry processing of failed inbox messages"
+        module: "reliability"
+        resource: "inbox"
+        action: "retry"
+        risk-level: "HIGH"
+        is-system: true
+        is-active: true
+
+      - name: "Limpar Registros da Inbox"
+        slug: "reliability:inbox:purge"
+        description: "Permanently remove eligible inbox records"
+        module: "reliability"
+        resource: "inbox"
+        action: "purge"
+        risk-level: "CRITICAL"
+        is-system: true
+        is-active: true
+
+      - name: "Atualizar Registro da Inbox"
+        slug: "reliability:inbox:update"
+        description: "Update inbox message records and processing information"
+        module: "reliability"
+        resource: "inbox"
+        action: "update"
+        risk-level: "HIGH"
+        is-system: true
+        is-active: true
+
   security:
     argon2:
       iterations: 2

@@ -326,14 +326,19 @@ class CreateUserUseCaseTest {
         @DisplayName("should delegate unknown integrity violation")
         void shouldDelegateUnknownIntegrityViolation() {
             when(mapper.toEntity(dto)).thenReturn(user);
+
             when(repository.insert(user)).thenThrow(
-                    new DataIntegrityViolationException("foreign key constraint failure")
+                    new DataIntegrityViolationException(
+                            "some unknown integrity violation"
+                    )
             );
 
             Result<UserEntity> result = createUserUseCase.execute(dto);
 
+            assertThat(result).isNotNull();
             assertThat(result.isFailure()).isTrue();
-            assertThat(result.getFirstError()).contains("Database integrity error");
+            assertThat(result.getFirstError())
+                    .contains("Database integrity error");
         }
     }
 

@@ -22,6 +22,6 @@ public class RevokeAllTokenByUserIdUseCase implements IRevokeAllTokenByUserIdUse
 
         int revokedCount = repository.revokeAllByUserId(userId);
 
-        return Result.success(revokedCount);
+        return Result.success(Integer.valueOf(revokedCount));
     }
 }

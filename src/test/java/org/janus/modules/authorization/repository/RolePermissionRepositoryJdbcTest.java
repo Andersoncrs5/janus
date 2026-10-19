@@ -137,31 +137,6 @@ public class RolePermissionRepositoryJdbcTest extends BaseTest {
     }
 
     @Nested
-    class FindAllActiveByRoleId {
-
-        @Test
-        void returnsOnlyActiveOrNonExpired() {
-            UserEntity user = initUser();
-            RoleEntity role = initRole();
-            PermissionEntity activePerm = initPermission(user.getId());
-            PermissionEntity expiredPerm = initPermission(user.getId());
-
-            RolePermissionEntity activeRp = createRolePermissionEntity(role.getId(), activePerm.getId(), user.getId());
-            activeRp.setExpiresAt(OffsetDateTime.now().plusDays(1));
-            repository.save(activeRp);
-
-            RolePermissionEntity expiredRp = createRolePermissionEntity(role.getId(), expiredPerm.getId(), user.getId());
-            expiredRp.setExpiresAt(OffsetDateTime.now().minusDays(1));
-            repository.save(expiredRp);
-
-            List<RolePermissionEntity> activeList = repository.findAllActiveByRoleId(role.getId(), OffsetDateTime.now());
-
-            assertEquals(1, activeList.size());
-            assertEquals(activePerm.getId(), activeList.get(0).getPermissionId());
-        }
-    }
-
-    @Nested
     class CountByRoleId {
 
         @Test

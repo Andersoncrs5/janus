@@ -29,6 +29,18 @@ public class UpdateUserCredentialsUseCase implements IUpdateUserCredentialsUseCa
     @Override
     @ResultTransaction
     public Result<UserCredentialsEntity> execute(UUID userId, UpdateUserCredentialsDTO dto) {
+        if (userId == null) {
+            return Result.badRequest("User ID is required");
+        }
+
+        if (dto == null) {
+            return Result.badRequest("User credentials payload is required");
+        }
+
+        if (dto.passwordHash() == null || dto.passwordHash().isBlank()) {
+            return Result.badRequest("The password/hash is required");
+        }
+
         Optional<UserCredentialsEntity> credentialsOptional = repository.findByUserId(userId);
 
         if (credentialsOptional.isEmpty()) {

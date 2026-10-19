@@ -61,21 +61,16 @@ public class UpdateRoleUseCase
         return Map.of(
                 "uk_roles_slug",
                 () -> Result.conflict(
-                        "Role already exists with slug: '"
-                                + "slug"
-                                + "'"
+                        "Role already exists with this slug"
                 ),
-
                 "uk_roles_name",
                 () -> Result.conflict(
                         "Role already exists with this name"
                 ),
-
                 "ck_roles_name_not_empty",
                 () -> Result.badRequest(
                         "Role name cannot be empty"
                 ),
-
                 "ck_roles_version",
                 () -> Result.conflict(
                         "Invalid role version"

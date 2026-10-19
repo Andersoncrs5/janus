@@ -5,6 +5,7 @@ import org.janus.modules.authorization.application.service.role.CreateRoleUseCas
 import org.janus.modules.authorization.application.service.role.ExistsRoleByNameUseCase;
 import org.janus.modules.authorization.domain.entity.RoleEntity;
 import org.janus.modules.bootstrap.gateway.BootstrapInBoundGateway;
+import org.janus.shared.domain.exception.InternalServerErrorException;
 import org.janus.shared.domain.result.Result;
 import org.janus.shared.infrastructure.properties.BootstrapProperties;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,8 +21,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -48,49 +51,88 @@ class CreateRolesUseCaseTest {
     @BeforeEach
     void setUp() {
         adminRoleConfig = mock(BootstrapProperties.RoleConfig.class);
-        lenient().when(adminRoleConfig.name()).thenReturn("Administrator");
-        lenient().when(adminRoleConfig.description()).thenReturn("System Administrator Role");
-        lenient().when(adminRoleConfig.slug()).thenReturn("admin");
+
+        lenient()
+                .when(adminRoleConfig.name())
+                .thenReturn("Administrator");
+
+        lenient()
+                .when(adminRoleConfig.description())
+                .thenReturn("System Administrator Role");
+
+        lenient()
+                .when(adminRoleConfig.slug())
+                .thenReturn("admin");
 
         userRoleConfig = mock(BootstrapProperties.RoleConfig.class);
-        lenient().when(userRoleConfig.name()).thenReturn("Regular User");
-        lenient().when(userRoleConfig.description()).thenReturn("Standard User Role");
-        lenient().when(userRoleConfig.slug()).thenReturn("user");
 
-        lenient().when(gateway.existsRoleByNameUseCase()).thenReturn(existsRoleByNameUseCase);
-        lenient().when(gateway.createRoleUseCase()).thenReturn(createRoleUseCase);
+        lenient()
+                .when(userRoleConfig.name())
+                .thenReturn("Regular User");
+
+        lenient()
+                .when(userRoleConfig.description())
+                .thenReturn("Standard User Role");
+
+        lenient()
+                .when(userRoleConfig.slug())
+                .thenReturn("user");
+
+        lenient()
+                .when(gateway.existsRoleByNameUseCase())
+                .thenReturn(existsRoleByNameUseCase);
+
+        lenient()
+                .when(gateway.createRoleUseCase())
+                .thenReturn(createRoleUseCase);
     }
 
     @Test
-    @DisplayName("Should return early when roles list is null")
-    void shouldReturnEarlyWhenRolesListIsNull() {
+    @DisplayName("Should throw exception when roles list is null")
+    void shouldThrowExceptionWhenRolesListIsNull() {
+
         when(properties.roles()).thenReturn(null);
 
-        useCase.execute();
+        assertThatThrownBy(() -> useCase.execute())
+                .isInstanceOf(InternalServerErrorException.class)
+                .hasMessage("No initial roles defined for bootstrap.");
 
         verifyNoInteractions(gateway);
     }
 
     @Test
-    @DisplayName("Should return early when roles list is empty")
-    void shouldReturnEarlyWhenRolesListIsEmpty() {
-        when(properties.roles()).thenReturn(Collections.emptyList());
+    @DisplayName("Should throw exception when roles list is empty")
+    void shouldThrowExceptionWhenRolesListIsEmpty() {
 
-        useCase.execute();
+        when(properties.roles())
+                .thenReturn(Collections.emptyList());
+
+        assertThatThrownBy(() -> useCase.execute())
+                .isInstanceOf(InternalServerErrorException.class)
+                .hasMessage("No initial roles defined for bootstrap.");
 
         verifyNoInteractions(gateway);
     }
 
     @Test
-    @DisplayName("Should create roles successfully when none exist")
+    @DisplayName("Should create all roles successfully when none exist")
     void shouldCreateRolesSuccessfully() {
-        when(properties.roles()).thenReturn(List.of(adminRoleConfig, userRoleConfig));
 
-        when(existsRoleByNameUseCase.execute("Administrator")).thenReturn(Result.success(false));
-        when(existsRoleByNameUseCase.execute("Regular User")).thenReturn(Result.success(false));
+        when(properties.roles())
+                .thenReturn(List.of(
+                        adminRoleConfig,
+                        userRoleConfig
+                ));
+
+        when(existsRoleByNameUseCase.execute("Administrator"))
+                .thenReturn(Result.success(false));
+
+        when(existsRoleByNameUseCase.execute("Regular User"))
+                .thenReturn(Result.success(false));
 
         RoleEntity adminEntity = new RoleEntity();
         adminEntity.setId(UUID.randomUUID());
+
         RoleEntity userEntity = new RoleEntity();
         userEntity.setId(UUID.randomUUID());
 
@@ -100,61 +142,328 @@ class CreateRolesUseCaseTest {
 
         useCase.execute();
 
-        ArgumentCaptor<CreateRoleDTO> captor = ArgumentCaptor.forClass(CreateRoleDTO.class);
-        verify(createRoleUseCase, times(2)).execute(captor.capture());
+        verify(gateway, times(2))
+                .existsRoleByNameUseCase();
 
-        List<CreateRoleDTO> capturedDtos = captor.getAllValues();
-        assertEquals("Administrator", capturedDtos.get(0).name());
-        assertEquals("admin", capturedDtos.get(0).slug());
-        assertEquals("Regular User", capturedDtos.get(1).name());
-        assertEquals("user", capturedDtos.get(1).slug());
+        verify(gateway, times(2))
+                .createRoleUseCase();
+
+        verify(existsRoleByNameUseCase)
+                .execute("Administrator");
+
+        verify(existsRoleByNameUseCase)
+                .execute("Regular User");
+
+        ArgumentCaptor<CreateRoleDTO> captor =
+                ArgumentCaptor.forClass(CreateRoleDTO.class);
+
+        verify(createRoleUseCase, times(2))
+                .execute(captor.capture());
+
+        List<CreateRoleDTO> capturedDtos =
+                captor.getAllValues();
+
+        CreateRoleDTO adminDto = capturedDtos.get(0);
+
+        assertEquals(
+                "Administrator",
+                adminDto.name()
+        );
+
+        assertEquals(
+                "System Administrator Role",
+                adminDto.description()
+        );
+
+        assertEquals(
+                "admin",
+                adminDto.slug()
+        );
+
+        CreateRoleDTO userDto = capturedDtos.get(1);
+
+        assertEquals(
+                "Regular User",
+                userDto.name()
+        );
+
+        assertEquals(
+                "Standard User Role",
+                userDto.description()
+        );
+
+        assertEquals(
+                "user",
+                userDto.slug()
+        );
     }
 
     @Test
     @DisplayName("Should skip role creation when role already exists")
     void shouldSkipRoleCreationWhenRoleExists() {
-        when(properties.roles()).thenReturn(List.of(adminRoleConfig));
-        when(existsRoleByNameUseCase.execute("Administrator")).thenReturn(Result.success(true));
+
+        when(properties.roles())
+                .thenReturn(List.of(adminRoleConfig));
+
+        when(existsRoleByNameUseCase.execute("Administrator"))
+                .thenReturn(Result.success(true));
 
         useCase.execute();
 
-        verify(existsRoleByNameUseCase, times(1)).execute("Administrator");
-        verify(createRoleUseCase, never()).execute(any());
+        verify(existsRoleByNameUseCase)
+                .execute("Administrator");
+
+        verify(createRoleUseCase, never())
+                .execute(any(CreateRoleDTO.class));
     }
 
     @Test
-    @DisplayName("Should continue loop when checking existence fails for a role")
-    void shouldContinueWhenExistenceCheckFails() {
-        when(properties.roles()).thenReturn(List.of(adminRoleConfig, userRoleConfig));
-        when(existsRoleByNameUseCase.execute("Administrator")).thenReturn(Result.failure("Database error", 500));
-        when(existsRoleByNameUseCase.execute("Regular User")).thenReturn(Result.success(false));
+    @DisplayName("Should skip existing roles and create missing roles")
+    void shouldSkipExistingRolesAndCreateMissingRoles() {
 
-        RoleEntity userEntity = new RoleEntity();
-        userEntity.setId(UUID.randomUUID());
-        when(createRoleUseCase.execute(any(CreateRoleDTO.class))).thenReturn(Result.success(userEntity));
+        when(properties.roles())
+                .thenReturn(List.of(
+                        adminRoleConfig,
+                        userRoleConfig
+                ));
 
-        useCase.execute();
+        when(existsRoleByNameUseCase.execute("Administrator"))
+                .thenReturn(Result.success(true));
 
-        verify(existsRoleByNameUseCase, times(1)).execute("Administrator");
-        verify(existsRoleByNameUseCase, times(1)).execute("Regular User");
-        verify(createRoleUseCase, times(1)).execute(any(CreateRoleDTO.class));
-    }
-
-    @Test
-    @DisplayName("Should continue loop when role creation fails")
-    void shouldContinueWhenRoleCreationFails() {
-        when(properties.roles()).thenReturn(List.of(adminRoleConfig, userRoleConfig));
-        when(existsRoleByNameUseCase.execute(anyString())).thenReturn(Result.success(false));
+        when(existsRoleByNameUseCase.execute("Regular User"))
+                .thenReturn(Result.success(false));
 
         RoleEntity userEntity = new RoleEntity();
         userEntity.setId(UUID.randomUUID());
 
         when(createRoleUseCase.execute(any(CreateRoleDTO.class)))
-                .thenReturn(Result.failure("Constraint error", 500))
                 .thenReturn(Result.success(userEntity));
 
         useCase.execute();
 
-        verify(createRoleUseCase, times(2)).execute(any(CreateRoleDTO.class));
+        verify(existsRoleByNameUseCase)
+                .execute("Administrator");
+
+        verify(existsRoleByNameUseCase)
+                .execute("Regular User");
+
+        ArgumentCaptor<CreateRoleDTO> captor =
+                ArgumentCaptor.forClass(CreateRoleDTO.class);
+
+        verify(createRoleUseCase)
+                .execute(captor.capture());
+
+        CreateRoleDTO dto = captor.getValue();
+
+        assertEquals(
+                "Regular User",
+                dto.name()
+        );
+
+        assertEquals(
+                "Standard User Role",
+                dto.description()
+        );
+
+        assertEquals(
+                "user",
+                dto.slug()
+        );
+    }
+
+    @Test
+    @DisplayName("Should throw exception when role existence check fails")
+    void shouldThrowExceptionWhenExistenceCheckFails() {
+
+        when(properties.roles())
+                .thenReturn(List.of(
+                        adminRoleConfig,
+                        userRoleConfig
+                ));
+
+        when(existsRoleByNameUseCase.execute("Administrator"))
+                .thenReturn(
+                        Result.failure(
+                                "Database error",
+                                500
+                        )
+                );
+
+        assertThatThrownBy(() -> useCase.execute())
+                .isInstanceOf(InternalServerErrorException.class)
+                .hasMessage(
+                        "Failed to check existence for role 'Administrator': Database error"
+                );
+
+        verify(existsRoleByNameUseCase)
+                .execute("Administrator");
+
+        verify(existsRoleByNameUseCase, never())
+                .execute("Regular User");
+
+        verify(createRoleUseCase, never())
+                .execute(any(CreateRoleDTO.class));
+    }
+
+    @Test
+    @DisplayName("Should throw exception when role creation fails")
+    void shouldThrowExceptionWhenRoleCreationFails() {
+
+        when(properties.roles())
+                .thenReturn(List.of(
+                        adminRoleConfig,
+                        userRoleConfig
+                ));
+
+        when(existsRoleByNameUseCase.execute("Administrator"))
+                .thenReturn(Result.success(false));
+
+        when(createRoleUseCase.execute(any(CreateRoleDTO.class)))
+                .thenReturn(
+                        Result.failure(
+                                "Constraint error",
+                                500
+                        )
+                );
+
+        assertThatThrownBy(() -> useCase.execute())
+                .isInstanceOf(InternalServerErrorException.class)
+                .hasMessage(
+                        "Failed to create role 'Administrator': Constraint error"
+                );
+
+        verify(existsRoleByNameUseCase)
+                .execute("Administrator");
+
+        verify(createRoleUseCase)
+                .execute(any(CreateRoleDTO.class));
+
+        verify(existsRoleByNameUseCase, never())
+                .execute("Regular User");
+
+        verify(createRoleUseCase, times(1))
+                .execute(any(CreateRoleDTO.class));
+    }
+
+    @Test
+    @DisplayName("Should propagate unexpected exception from existence check")
+    void shouldPropagateUnexpectedExceptionFromExistenceCheck() {
+
+        when(properties.roles())
+                .thenReturn(List.of(adminRoleConfig));
+
+        RuntimeException exception =
+                new RuntimeException("Unexpected database failure");
+
+        when(existsRoleByNameUseCase.execute("Administrator"))
+                .thenThrow(exception);
+
+        assertThatThrownBy(() -> useCase.execute())
+                .isSameAs(exception);
+
+        verify(existsRoleByNameUseCase)
+                .execute("Administrator");
+
+        verify(createRoleUseCase, never())
+                .execute(any(CreateRoleDTO.class));
+    }
+
+    @Test
+    @DisplayName("Should propagate unexpected exception from role creation")
+    void shouldPropagateUnexpectedExceptionFromRoleCreation() {
+
+        when(properties.roles())
+                .thenReturn(List.of(adminRoleConfig));
+
+        when(existsRoleByNameUseCase.execute("Administrator"))
+                .thenReturn(Result.success(false));
+
+        RuntimeException exception =
+                new RuntimeException("Unexpected creation failure");
+
+        when(createRoleUseCase.execute(any(CreateRoleDTO.class)))
+                .thenThrow(exception);
+
+        assertThatThrownBy(() -> useCase.execute())
+                .isSameAs(exception);
+
+        verify(existsRoleByNameUseCase)
+                .execute("Administrator");
+
+        verify(createRoleUseCase)
+                .execute(any(CreateRoleDTO.class));
+    }
+
+    @Test
+    @DisplayName("Should process roles in configuration order")
+    void shouldProcessRolesInConfigurationOrder() {
+
+        when(properties.roles())
+                .thenReturn(List.of(
+                        adminRoleConfig,
+                        userRoleConfig
+                ));
+
+        when(existsRoleByNameUseCase.execute(anyString()))
+                .thenReturn(Result.success(false));
+
+        RoleEntity adminEntity = new RoleEntity();
+        adminEntity.setId(UUID.randomUUID());
+
+        RoleEntity userEntity = new RoleEntity();
+        userEntity.setId(UUID.randomUUID());
+
+        when(createRoleUseCase.execute(any(CreateRoleDTO.class)))
+                .thenReturn(Result.success(adminEntity))
+                .thenReturn(Result.success(userEntity));
+
+        useCase.execute();
+
+        ArgumentCaptor<CreateRoleDTO> captor =
+                ArgumentCaptor.forClass(CreateRoleDTO.class);
+
+        verify(createRoleUseCase, times(2))
+                .execute(captor.capture());
+
+        List<CreateRoleDTO> dtos =
+                captor.getAllValues();
+
+        assertEquals(
+                "Administrator",
+                dtos.get(0).name()
+        );
+
+        assertEquals(
+                "Regular User",
+                dtos.get(1).name()
+        );
+    }
+
+    @Test
+    @DisplayName("Should not create any role when all roles already exist")
+    void shouldNotCreateAnyRoleWhenAllRolesAlreadyExist() {
+
+        when(properties.roles())
+                .thenReturn(List.of(
+                        adminRoleConfig,
+                        userRoleConfig
+                ));
+
+        when(existsRoleByNameUseCase.execute("Administrator"))
+                .thenReturn(Result.success(true));
+
+        when(existsRoleByNameUseCase.execute("Regular User"))
+                .thenReturn(Result.success(true));
+
+        useCase.execute();
+
+        verify(existsRoleByNameUseCase)
+                .execute("Administrator");
+
+        verify(existsRoleByNameUseCase)
+                .execute("Regular User");
+
+        verify(createRoleUseCase, never())
+                .execute(any(CreateRoleDTO.class));
     }
 }

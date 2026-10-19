@@ -21,15 +21,23 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @QuarkusTest
 public class PermissionRepositoryJdbcTest extends BaseTest {
 
-    protected PermissionEntity createSamplePermission(String name, String slug) {
+    protected PermissionEntity createSamplePermission(
+            String name,
+            String slug
+    ) {
+        String unique = UUID.randomUUID()
+                .toString()
+                .replace("-", "")
+                .toLowerCase();
+
         return PermissionEntity.builder()
                 .id(UUID.randomUUID())
                 .name(name)
-                .slug(slug)
+                .slug(slug + ":" + unique)
                 .description("Test Permission Description")
                 .module(PermissionModule.IDENTITY)
                 .resource(PermissionResource.USER)
-                .action("read")
+                .action("read-" + unique)
                 .riskLevel(PermissionRiskLevel.LOW)
                 .isActive(true)
                 .isSystem(false)
@@ -44,18 +52,14 @@ public class PermissionRepositoryJdbcTest extends BaseTest {
 
     @Nested
     class Insert {
-
         @Test
         void shouldInsertPermissionWithGeneratedIdWhenIdIsNull() {
             PermissionEntity permission = createSamplePermission("READ_USERS", "users:read");
             permission.setId(null);
-
             PermissionEntity saved = permissionRepository.insert(permission);
-
             assertThat(saved).isNotNull();
             assertThat(saved.getId()).isNotNull();
             assertThat(saved.getVersion()).isEqualTo(0L);
-
             Optional<PermissionEntity> fetched = permissionRepository.findByName("READ_USERS");
             assertThat(fetched).isPresent();
             assertThat(fetched.get().getSlug()).containsIgnoringCase("users:read");
@@ -67,11 +71,8 @@ public class PermissionRepositoryJdbcTest extends BaseTest {
         void shouldInsertPermissionWithProvidedId() {
             PermissionEntity permission = createSamplePermission("WRITE_USERS", "users:write");
             UUID customId = permission.getId();
-
             PermissionEntity saved = permissionRepository.insert(permission);
-
             assertThat(saved.getId()).isEqualTo(customId);
-
             Optional<PermissionEntity> fetched = permissionRepository.findByName("WRITE_USERS");
             assertThat(fetched).isPresent();
             assertThat(fetched.get().getId()).isEqualTo(customId);
@@ -80,13 +81,10 @@ public class PermissionRepositoryJdbcTest extends BaseTest {
 
     @Nested
     class Save {
-
         @Test
         void shouldInsertWhenPermissionDoesNotExist() {
             PermissionEntity permission = createSamplePermission("DELETE_USERS", "users:delete");
-
             PermissionEntity result = permissionRepository.save(permission);
-
             assertThat(result.getId()).isNotNull();
             assertThat(permissionRepository.existsByName("DELETE_USERS")).isTrue();
         }
@@ -94,18 +92,14 @@ public class PermissionRepositoryJdbcTest extends BaseTest {
         @Test
         void shouldUpdateWhenPermissionAlreadyExists() {
             PermissionEntity permission = initPermission("UPDATE_USERS", "users:update");
-
-            permission.setDescription("Nova descrição atualizada");
+            permission.setDescription("Updated permission description");
             permission.setIsActive(false);
             permission.setRiskLevel(PermissionRiskLevel.HIGH);
-
             PermissionEntity updated = permissionRepository.save(permission);
-
-            assertThat(updated.getDescription()).isEqualTo("Nova descrição atualizada");
-
+            assertThat(updated.getDescription()).isEqualTo("Updated permission description");
             Optional<PermissionEntity> fetched = permissionRepository.findByName("UPDATE_USERS");
             assertThat(fetched).isPresent();
-            assertThat(fetched.get().getDescription()).isEqualTo("Nova descrição atualizada");
+            assertThat(fetched.get().getDescription()).isEqualTo("Updated permission description");
             assertThat(fetched.get().getIsActive()).isFalse();
             assertThat(fetched.get().getRiskLevel()).isEqualTo(PermissionRiskLevel.HIGH);
         }
@@ -113,24 +107,17 @@ public class PermissionRepositoryJdbcTest extends BaseTest {
         @Test
         void shouldThrowExceptionWhenOptimisticLockFails() {
             PermissionEntity permission = initPermission("AUDIT_READ", "audit:read");
-
             permission.setVersion(99L);
-
-            assertThatThrownBy(() -> permissionRepository.save(permission))
-                    .isInstanceOf(IllegalStateException.class)
-                    .hasMessageContaining("Failed to update Permission entity");
+            assertThatThrownBy(() -> permissionRepository.save(permission)).isInstanceOf(IllegalStateException.class).hasMessageContaining("Failed to update Permission entity");
         }
     }
 
     @Nested
     class FindByName {
-
         @Test
         void shouldReturnPermissionWhenNameExists() {
             PermissionEntity permission = initPermission("SESSION_READ", "session:read");
-
             Optional<PermissionEntity> result = permissionRepository.findByName("SESSION_READ");
-
             assertThat(result).isPresent();
             assertThat(result.get().getId()).isEqualTo(permission.getId());
             assertThat(result.get().getSlug()).containsIgnoringCase("session:read");
@@ -139,92 +126,74 @@ public class PermissionRepositoryJdbcTest extends BaseTest {
         @Test
         void shouldReturnEmptyWhenNameDoesNotExist() {
             Optional<PermissionEntity> result = permissionRepository.findByName("NON_EXISTENT_PERMISSION");
-
             assertThat(result).isEmpty();
         }
     }
 
     @Nested
     class ExistsByName {
-
         @Test
         void shouldReturnTrueWhenNameExists() {
             PermissionEntity permission = initPermission("ROLE_READ", "role:read");
-
             boolean exists = permissionRepository.existsByName(permission.getName());
-
             assertThat(exists).isTrue();
         }
 
         @Test
         void shouldReturnFalseWhenNameDoesNotExist() {
             boolean exists = permissionRepository.existsByName("NON_EXISTENT_PERMISSION");
-
             assertThat(exists).isFalse();
         }
     }
 
     @Nested
     class ExistsBySlug {
-
         @Test
         void shouldReturnTrueWhenSlugExists() {
             PermissionEntity permission = initPermission("PERMISSION_READ", "permission:read");
-
             boolean exists = permissionRepository.existsBySlug(permission.getSlug());
-
             assertThat(exists).isTrue();
         }
 
         @Test
         void shouldReturnFalseWhenSlugDoesNotExist() {
             boolean exists = permissionRepository.existsBySlug("non:existent:slug");
-
             assertThat(exists).isFalse();
         }
     }
 
     @Nested
     class FindAll {
-
         @Test
         void shouldFilterPermissionsByNameModuleAndStatus() {
             PermissionEntity p1 = createSamplePermission("AUTH_LOGIN_READ", "auth:login:read");
             p1.setModule(PermissionModule.AUTHENTICATION);
+            p1.setAction("login-read");
             p1.setIsActive(true);
             permissionRepository.insert(p1);
-
             PermissionEntity p2 = createSamplePermission("AUTH_LOGIN_WRITE", "auth:login:write");
             p2.setModule(PermissionModule.AUTHENTICATION);
+            p2.setAction("login-write");
             p2.setIsActive(false);
             permissionRepository.insert(p2);
-
             PermissionFilterDTO filter = new PermissionFilterDTO();
             filter.setName("AUTH");
             filter.setModule(Set.of(PermissionModule.AUTHENTICATION));
             filter.setIsActive(true);
             filter.setPage(0);
             filter.setSize(10);
-
             Page<PermissionEntity> page = permissionRepository.findAll(filter);
-
             assertThat(page.getTotalElements()).isEqualTo(1);
-            assertThat(page.getContent())
-                    .extracting(PermissionEntity::getName)
-                    .contains("AUTH_LOGIN_READ")
-                    .doesNotContain("AUTH_LOGIN_WRITE");
+            assertThat(page.getContent()).extracting(PermissionEntity::getName).contains("AUTH_LOGIN_READ").doesNotContain("AUTH_LOGIN_WRITE");
         }
     }
 
     @Nested
     class Delete {
-
         @Test
         void shouldDeleteByIdWhenPermissionExists() {
             PermissionEntity permission = initPermission("PERMISSION_TO_DELETE", "permission:delete");
-
             int deleted = permissionRepository.deleteById(permission.getId());
-
             assertThat(deleted).isGreaterThan(0);
             assertThat(permissionRepository.existsByName("PERMISSION_TO_DELETE")).isFalse();
         }
@@ -232,7 +201,6 @@ public class PermissionRepositoryJdbcTest extends BaseTest {
         @Test
         void shouldReturnZeroWhenDeletingByNonExistentId() {
             int deleted = permissionRepository.deleteById(UUID.randomUUID());
-
             assertThat(deleted).isEqualTo(0);
         }
     }

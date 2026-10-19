@@ -141,15 +141,25 @@ public class BaseTest {
         return loginAttempt;
     }
 
-    protected LoginAttemptEntity createSampleLoginAttempt(UUID userId, String email, Boolean success) {
+    protected LoginAttemptEntity createSampleLoginAttempt(
+            UUID userId,
+            String email,
+            Boolean success
+    ) {
         LoginAttemptEntity loginAttempt = new LoginAttemptEntity();
 
         loginAttempt.setUserId(userId);
         loginAttempt.setEmailAttempted(email);
         loginAttempt.setIpAddress("192.168.1.1");
-        loginAttempt.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
+        loginAttempt.setUserAgent(
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+        );
         loginAttempt.setSuccess(success);
-        loginAttempt.setFailureReason("any");
+        loginAttempt.setFailureReason(
+                Boolean.TRUE.equals(success)
+                        ? null
+                        : "INVALID_CREDENTIALS"
+        );
 
         return loginAttempt;
     }
@@ -291,14 +301,15 @@ public class BaseTest {
     }
 
     protected PermissionEntity createSamplePermissionEntity(UUID createdBy) {
-        var chars = generateRandomString();
+        var chars = generateRandomString().toLowerCase();
+
         return PermissionEntity.builder()
-                .name("Read Users" + chars)
-                .slug("users:read:" + chars.toLowerCase())
+                .name("Read Users " + chars)
+                .slug("users:read:" + chars)
                 .description("Permission to read user data")
                 .module(PermissionModule.IDENTITY)
                 .resource(PermissionResource.USER)
-                .action("read")
+                .action("read-" + chars)
                 .riskLevel(PermissionRiskLevel.LOW)
                 .isActive(true)
                 .isSystem(false)

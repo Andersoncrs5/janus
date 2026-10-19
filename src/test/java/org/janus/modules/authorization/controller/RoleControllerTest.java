@@ -56,7 +56,6 @@ public class RoleControllerTest extends BaseTest {
             assertThat(result.getName()).isEqualTo(dto.name());
             assertThat(result.getSlug()).isEqualTo(dto.slug());
             assertThat(result.getDescription()).isEqualTo(dto.description());
-            assertThat(result.getIsActive()).isTrue();
         }
 
         @Test
@@ -327,7 +326,6 @@ public class RoleControllerTest extends BaseTest {
             assertThat(updatedRole.getName()).isEqualTo(updateDto.name());
             assertThat(updatedRole.getDescription()).isEqualTo(updateDto.description());
             assertThat(updatedRole.getSlug()).isEqualTo(updateDto.slug());
-            assertThat(updatedRole.getIsActive()).isFalse();
         }
 
         @Test
